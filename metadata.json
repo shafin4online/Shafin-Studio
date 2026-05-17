@@ -1,6 +1,8 @@
 {
-  "name": "Akta Photo Studio",
-  "description": "A premium photography studio management and portfolio application showcasing artistic photography services.",
+  "name": "ShafinBD Studio",
+  "description": "Professional photo studio application for image beautification and processing.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
