@@ -20,16 +20,19 @@ ShafinBD Studio is a high-end, professional-grade web application designed for p
 
 ## 🚀 How to Deploy to Vercel
 
-1. **Push to GitHub**: Ensure your latest code is on your GitHub repository.
+1. **Push to GitHub**: Make sure you have pushed all the latest files, especially the updated `index.html` and the `src` folder.
 2. **Connect to Vercel**: Import the repository into your Vercel account.
 3. **Configure Environment Variables**:
    - Go to `Settings` > `Environment Variables`.
    - Add `VITE_APP_TITLE` with the value `ShafinBD Studio`.
 4. **Build Settings**:
-   - Framework Preset: `Vite`
+   - Framework Preset: `Vite` (Vercel usually auto-detects this).
    - Build Command: `npm run build`
    - Output Directory: `dist`
-5. **Deploy**: Click "Deploy". Vercel will automatically handle the rest.
+5. **Common Fix for Build Errors**:
+   - If you see "Could not resolve /src/main.tsx", ensure your `index.html` script tag looks exactly like this: `<script type="module" src="/src/main.tsx"></script>` (with a leading slash, no dot).
+   - Check that the `src` folder case matches exactly in GitHub (it should be lowercase `src`).
+6. **Deploy**: Click "Deploy". Vercel will automatically handle the rest.
 
 ---
 Developed by **ShafinBD Studio**.
