@@ -1,21 +1,35 @@
-# ShafinBD Studio
+# ShafinBD Studio 📸
 
-Professional photo studio application for image beautification and processing.
+ShafinBD Studio is a high-end, professional-grade web application designed for photo studio workflows. It offers powerful, client-side image processing tools powered by AI and computer vision.
 
-## Tech Stack
-- React
-- TypeScript
-- Tailwind CSS
-- Gemini AI
-- MediaPipe
-- OpenCV.js
+## 🌟 Key Features
+- **Next-Gen Background Removal**: 
+  - Standard AI removal.
+  - SOTA (State of the Art) GrabCut AI for complex edges.
+  - Specialized Human/Portrait segmentation.
+- **AI Image Enhancement**: Upscale and clarify images using client-side AI modules.
+- **Studio-Grade Filters**: Real-time adjustment for Brightness, Contrast, Saturation, Temperature, Hue, and Sharpness.
+- **Smart Print Layouts**: One-click formatting for Passport photos, 3R, 4R, and other standard studio sizes.
+- **Advanced Layer Engine**: Professional layer-based editing with non-destructive changes.
+- **Zero-Server Processing**: All image processing happens in your browser for maximum privacy and speed.
 
-## Features
-- AI Background Removal (Multi-model: Standard, AI GrabCut, Human-specific)
-- BG-Pro SOTA segmentation
-- AI Image Enhancement & Upscaling
-- Professional Filters (Brightness, Contrast, Saturation, Temperature, Hue, Sharpness)
-- Batch Processing & Background Replacements
-- Photo Print Layouts (Passport, 3R, 4R, etc.)
-- Layer Management
-- Undo/Redo Support
+## 🛠 Tech Stack
+- **Frontend**: React 18, TypeScript, Tailwind CSS
+- **AI/ML**: MediaPipe (Google), OpenCV.js, ONNX Runtime
+- **Styles**: Framer Motion, shadcn/ui
+
+## 🚀 How to Deploy to Vercel
+
+1. **Push to GitHub**: Ensure your latest code is on your GitHub repository.
+2. **Connect to Vercel**: Import the repository into your Vercel account.
+3. **Configure Environment Variables**:
+   - Go to `Settings` > `Environment Variables`.
+   - Add `VITE_APP_TITLE` with the value `ShafinBD Studio`.
+4. **Build Settings**:
+   - Framework Preset: `Vite`
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+5. **Deploy**: Click "Deploy". Vercel will automatically handle the rest.
+
+---
+Developed by **ShafinBD Studio**.

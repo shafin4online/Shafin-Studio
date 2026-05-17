@@ -31,7 +31,7 @@ export function StudioHeader() {
       <div className="flex items-center gap-2">
         <img src="/favicon.png" alt="Photo Studio logo" className="h-6 w-6" />
         <h1 className="text-base font-semibold tracking-tight font-mono-studio text-foreground">
-          ShafinBD Studio
+          {import.meta.env.VITE_APP_TITLE || 'ShafinBD Studio'}
         </h1>
       </div>
       <div className="flex items-center gap-2">
