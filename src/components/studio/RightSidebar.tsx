@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useStudio } from '@/context/StudioContext';
 import { CROP_PRESETS } from '@/context/studioTypes';
-import { Printer, Download, Archive, Palette } from 'lucide-react';
+import { Printer, Download, Archive, Palette, ImageIcon } from 'lucide-react';
 import { LayerPanel } from './LayerPanel';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -155,7 +156,7 @@ export function RightSidebar() {
         </head>
         <body>
           ${imagesHtml}
-          <script>window.onload = () => { window.print(); }<\/script>
+          <script>window.onload = () => { window.print(); }</script>
         </body>
       </html>
     `);
@@ -197,7 +198,7 @@ export function RightSidebar() {
         </head>
         <body>
           ${imagesHtml}
-          <script>window.onload = () => { window.print(); }<\/script>
+          <script>window.onload = () => { window.print(); }</script>
         </body>
       </html>
     `);
@@ -206,141 +207,148 @@ export function RightSidebar() {
   };
 
   return (
-    <aside className="w-56 border-l border-border bg-card flex flex-col overflow-y-auto studio-scrollbar">
-      <ImageTray
-        images={images}
-        activeImageId={activeImageId}
-        onSelectImage={setActiveImage}
-        onRemoveImage={removeImage}
-        onMergeOpen={() => setMergeOpen(true)}
-        onLayerMode={() => setIsLayerMode(true)}
-      />
-
-      <LayerPanel />
-
-      <div className="border-t border-border" />
-      <div className="border-t border-border" />
-
-      {/* Colors */}
-      <div className="p-3">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-mono-studio">Colors</p>
-        <div className="grid grid-cols-4 gap-1.5">
-          {BG_PRESETS.map(preset => (
-            <button
-              key={preset.value}
-              onClick={() => updateEditorState({ backgroundColor: preset.value })}
-              className={cn(
-                "w-full aspect-square rounded-md border transition-all",
-                editorState.backgroundColor === preset.value
-                  ? "border-primary ring-1 ring-primary scale-110"
-                  : "border-border hover:border-muted-foreground"
-              )}
-              style={{
-                background: preset.value === 'transparent'
-                  ? 'repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--studio-surface)) 0% 50%) 50% / 12px 12px'
-                  : preset.value,
-              }}
-              title={preset.label}
+    <aside className="w-[280px] border-l border-border bg-[#0f1116] flex flex-col overflow-hidden studio-scrollbar text-white">
+      <div className="flex-1 overflow-y-auto studio-scrollbar">
+        <div className="p-4 space-y-6">
+          <div className="space-y-3">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold flex items-center gap-2">
+              <ImageIcon className="h-3.5 w-3.5" /> IMAGE TRAY
+            </p>
+            <ImageTray
+              images={images}
+              activeImageId={activeImageId}
+              onSelectImage={setActiveImage}
+              onRemoveImage={removeImage}
+              onMergeOpen={() => setMergeOpen(true)}
+              onLayerMode={() => setIsLayerMode(true)}
             />
-          ))}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className={cn(
-                  "w-full aspect-square rounded-md border transition-all flex items-center justify-center",
-                  !BG_PRESETS.some(p => p.value === editorState.backgroundColor)
-                    ? "border-primary ring-1 ring-primary scale-110"
-                    : "border-border hover:border-muted-foreground",
-                  "bg-gradient-to-br from-red-500 via-green-500 to-blue-500"
-                )}
-                title="Custom Color"
-              >
-                <Palette className="h-3.5 w-3.5 text-white drop-shadow-md" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-48 p-3" side="left">
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-foreground">Custom Color</p>
-                <Input
-                  type="color"
-                  value={editorState.backgroundColor === 'transparent' ? '#ffffff' : editorState.backgroundColor}
-                  onChange={(e) => updateEditorState({ backgroundColor: e.target.value })}
-                  className="w-full h-10 p-1 cursor-pointer"
-                />
-                <Input
-                  type="text"
-                  placeholder="#RRGGBB"
-                  value={editorState.backgroundColor === 'transparent' ? '' : editorState.backgroundColor}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (/^#[0-9A-Fa-f]{0,6}$/.test(val) || val === '') {
-                      updateEditorState({ backgroundColor: val || 'transparent' });
-                    }
+          </div>
+
+          <div className="pt-6 border-t border-border/50">
+            <LayerPanel />
+          </div>
+
+          <div className="pt-6 border-t border-border/50">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold mb-4">Colors</p>
+            <div className="grid grid-cols-4 gap-2">
+              {BG_PRESETS.map(preset => (
+                <button
+                  key={preset.value}
+                  onClick={() => updateEditorState({ backgroundColor: preset.value })}
+                  className={cn(
+                    "w-full aspect-square rounded-md border transition-all",
+                    editorState.backgroundColor === preset.value
+                      ? "border-primary ring-1 ring-primary scale-110"
+                      : "border-border hover:border-muted-foreground"
+                  )}
+                  style={{
+                    background: preset.value === 'transparent'
+                      ? 'repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--studio-surface)) 0% 50%) 50% / 12px 12px'
+                      : preset.value,
                   }}
-                  className="text-xs h-8"
+                  title={preset.label}
                 />
-              </div>
-            </PopoverContent>
-          </Popover>
+              ))}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    className={cn(
+                      "w-full aspect-square rounded-md border transition-all flex items-center justify-center",
+                      !BG_PRESETS.some(p => p.value === editorState.backgroundColor)
+                        ? "border-primary ring-1 ring-primary scale-110"
+                        : "border-border hover:border-muted-foreground",
+                      "bg-gradient-to-br from-red-500 via-green-500 to-blue-500"
+                    )}
+                    title="Custom Color"
+                  >
+                    <Palette className="h-3.5 w-3.5 text-white drop-shadow-md" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-3" side="left">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">Custom Color</p>
+                    <Input
+                      type="color"
+                      value={editorState.backgroundColor === 'transparent' ? '#ffffff' : editorState.backgroundColor}
+                      onChange={(e) => updateEditorState({ backgroundColor: e.target.value })}
+                      className="w-full h-10 p-1 cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      placeholder="#RRGGBB"
+                      value={editorState.backgroundColor === 'transparent' ? '' : editorState.backgroundColor}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(val) || val === '') {
+                          updateEditorState({ backgroundColor: val || 'transparent' });
+                        }
+                      }}
+                      className="text-xs h-8"
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="border-t border-border/50" />
+
+          {/* Border */}
+          <div className="p-3">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="border-toggle"
+                checked={editorState.borderEnabled}
+                onCheckedChange={(checked) => updateEditorState({ borderEnabled: !!checked })}
+              />
+              <label htmlFor="border-toggle" className="text-[11px] text-muted-foreground cursor-pointer">
+                2px Border
+              </label>
+            </div>
+          </div>
+
+          <div className="border-t border-border/50" />
+
+          {/* Export Actions */}
+          <div className="p-3 space-y-1.5 mt-auto pb-8">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-bold">Export</p>
+            <button
+              onClick={() => setPrintOpen(true)}
+              disabled={!activeImage}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40"
+            >
+              <Printer className="h-3.5 w-3.5" /> Print Sheet
+            </button>
+            <button
+              onClick={() => setPrintAllOpen(true)}
+              disabled={images.length === 0}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40"
+            >
+              <Printer className="h-3.5 w-3.5" /> Print All (Tray)
+            </button>
+            <button
+              onClick={handleDownload}
+              disabled={!activeImage}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
+            >
+              <Download className="h-3.5 w-3.5" /> Download
+            </button>
+            <button
+              onClick={handleDownloadTransparent}
+              disabled={!activeImage}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-violet-500/15 text-violet-200 border border-violet-500/30 hover:bg-violet-500/25 transition-colors disabled:opacity-40"
+            >
+              <Download className="h-3.5 w-3.5" /> PNG (Transparent)
+            </button>
+            <button
+              onClick={handleDownloadAll}
+              disabled={images.length === 0}
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40"
+            >
+              <Archive className="h-3.5 w-3.5" /> Download All (ZIP)
+            </button>
+          </div>
         </div>
-      </div>
-
-      <div className="border-t border-border" />
-
-      {/* Border */}
-      <div className="p-3">
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="border-toggle"
-            checked={editorState.borderEnabled}
-            onCheckedChange={(checked) => updateEditorState({ borderEnabled: !!checked })}
-          />
-          <label htmlFor="border-toggle" className="text-[11px] text-secondary-foreground cursor-pointer">
-            2px Border
-          </label>
-        </div>
-      </div>
-
-      <div className="border-t border-border" />
-
-      {/* Actions */}
-      <div className="p-3 space-y-1.5 mt-auto">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-mono-studio">Export</p>
-        <button
-          onClick={() => setPrintOpen(true)}
-          disabled={!activeImage}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40"
-        >
-          <Printer className="h-3.5 w-3.5" /> Print Sheet
-        </button>
-        <button
-          onClick={() => setPrintAllOpen(true)}
-          disabled={images.length === 0}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40"
-        >
-          <Printer className="h-3.5 w-3.5" /> Print All (Tray)
-        </button>
-        <button
-          onClick={handleDownload}
-          disabled={!activeImage}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
-        >
-          <Download className="h-3.5 w-3.5" /> Download
-        </button>
-        <button
-          onClick={handleDownloadTransparent}
-          disabled={!activeImage}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-violet-500/15 text-violet-200 border border-violet-500/30 hover:bg-violet-500/25 transition-colors disabled:opacity-40"
-        >
-          <Download className="h-3.5 w-3.5" /> PNG (Transparent)
-        </button>
-        <button
-          onClick={handleDownloadAll}
-          disabled={images.length === 0}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40"
-        >
-          <Archive className="h-3.5 w-3.5" /> Download All (ZIP)
-        </button>
       </div>
 
       <PrintSheetDialog open={printOpen} onOpenChange={setPrintOpen} onPrint={handlePrintSheet} />
