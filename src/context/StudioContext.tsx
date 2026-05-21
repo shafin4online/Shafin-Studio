@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import type { EditorState, StudioImage, CropPreset } from './studioTypes';
-import { removeBackground } from '@imgly/background-removal';
-import { Client } from '@gradio/client';
+import { processBackgroundRemoval } from './bgProService';
+import { processImageEnhancement } from './enhancerService';
 
 export interface HistoryItem {
   editorState: EditorState;
@@ -52,6 +52,9 @@ interface StudioContextType {
   pushHistory: (customImages?: StudioImage[], customEditorState?: EditorState) => void;
   setIsLayerMode: (val: boolean) => void;
   setActiveCropPreset: (preset: CropPreset | null) => void;
+  batchUpdateEditedImages: (updates: { id: string; dataUrl: string; }[], resetSliders: boolean) => void;
+  batchOpen: boolean;
+  setBatchOpen: (open: boolean) => void;
   
   // BG-Pro Functions
   setBgOutputMode: (mode: 'transparent' | 'white' | 'black') => void;
@@ -100,6 +103,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isLayerMode, setIsLayerMode] = useState(false);
   const [activeCropPreset, setActiveCropPreset] = useState<CropPreset | null>(null);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   // BG-Pro states
   const [isProcessingBg, setIsProcessingBg] = useState(false);
@@ -145,6 +149,31 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateEditedImage = (id: string, dataUrl: string) => {
     setImages(prev => {
       const updated = prev.map(img => img.id === id ? { ...img, edited: dataUrl } : img);
+      return updated;
+    });
+  };
+
+  const batchUpdateEditedImages = (updates: { id: string; dataUrl: string; }[], resetSliders: boolean) => {
+    setImages(prev => {
+      const updated = prev.map(img => {
+        const up = updates.find(u => u.id === img.id);
+        return up ? { ...img, edited: up.dataUrl, thumbnail: up.dataUrl } : img;
+      });
+
+      const nextEditorState = resetSliders ? initialEditorState : editorState;
+
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push({
+        editorState: { ...nextEditorState },
+        images: updated.map(img => ({ ...img }))
+      });
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+
+      if (resetSliders) {
+        setEditorState(nextEditorState);
+      }
+
       return updated;
     });
   };
@@ -249,73 +278,16 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     try {
       const imageUrl = imgItem.edited;
-
-      const resultBlob = await removeBackground(imageUrl, {
-        output: {
-          format: 'image/png',
-          type: 'foreground',
-        },
-        progress: (key: string, current: number, total: number) => {
-          let progressVal = 0;
-          if (total && total > 0) {
-            progressVal = Math.round((current / total) * 100);
-          } else {
-            progressVal = current ? Math.min(Math.round(current / 10000), 99) : 0;
-          }
+      const finalDataUrl = await processBackgroundRemoval({
+        imageUrl,
+        bgOutputMode,
+        edgeSmoothing,
+        onProgress: (keyLabel, progressVal) => {
+          setBgProgressKey(keyLabel);
           setBgProgress(progressVal);
-          
-          if (key.includes('fetch')) {
-            const part = key.split(':')[1] || '';
-            setBgProgressKey(`Downloading neural network model ${part} (${progressVal}%)...`);
-          } else if (key.includes('onnx')) {
-            setBgProgressKey('Compiling WebAssembly AI model runtime...');
-          } else if (key === 'processing') {
-            setBgProgressKey('Analyzing transparency channels and smoothing borders...');
-          } else {
-            setBgProgressKey(`Processing: ${key}...`);
-          }
         },
-        signal: controller.signal
+        signal: controller.signal,
       });
-
-      // Composite the image if solid background or custom feathering required
-      let finalDataUrl = '';
-      if (bgOutputMode === 'transparent' && edgeSmoothing === 0) {
-        finalDataUrl = URL.createObjectURL(resultBlob);
-      } else {
-        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const im = new Image();
-          im.crossOrigin = 'anonymous';
-          im.onload = () => resolve(im);
-          im.onerror = reject;
-          im.src = URL.createObjectURL(resultBlob);
-        });
-
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d')!;
-
-        // Fill background
-        if (bgOutputMode === 'white') {
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        } else if (bgOutputMode === 'black') {
-          ctx.fillStyle = '#000000';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        } else {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-
-        // Apply edge smoothing via slight shadow blur or custom composite drawing
-        if (edgeSmoothing > 0) {
-          ctx.shadowColor = 'rgba(0,0,0,0.2)';
-          ctx.shadowBlur = edgeSmoothing;
-        }
-
-        ctx.drawImage(img, 0, 0);
-        finalDataUrl = canvas.toDataURL('image/png');
-      }
 
       // Mark model as downloaded
       localStorage.setItem('bg_pro_model_downloaded', 'true');
@@ -369,52 +341,24 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!imgItem) return;
 
     setIsProcessingEnhancer(true);
-    setEnhancerProgressKey('Connecting with Hugging Face Space (rmayormartins)...');
+    setEnhancerProgressKey('Preparing image and setting up proxy connection...');
 
     const controller = new AbortController();
     enhancerAbortControllerRef.current = controller;
 
     try {
       const imageUrl = imgItem.edited;
-      const resBlob = await fetch(imageUrl);
-      const imageBlob = await resBlob.blob();
-
-      setEnhancerProgressKey('Enhancing details & running neural upscaler...');
-      const client = await Client.connect("rmayormartins/image-enhancer");
-
-      if (controller.signal.aborted) {
-        throw new Error('AbortError');
-      }
-
-      const result = await client.predict("/predict", [
-        imageBlob,
-        true, // enhance
+      const localResultUrl = await processImageEnhancement({
+        imageUrl,
         enhancerScale,
         enhancerDpi,
         enhancerDpiValue,
         enhancerResize,
         enhancerWidth,
-        enhancerHeight
-      ]);
-
-      if (controller.signal.aborted) {
-        throw new Error('AbortError');
-      }
-
-      setEnhancerProgressKey('Importing enhanced details...');
-      
-      const outputData = result.data[0];
-      const outputUrl = typeof outputData === 'object' && outputData !== null && 'url' in outputData 
-        ? (outputData as { url: string }).url 
-        : (typeof outputData === 'string' ? outputData : null);
-
-      if (!outputUrl) {
-        throw new Error('Enhancer did not return a valid result URL');
-      }
-
-      const responseUrl = await fetch(outputUrl);
-      const finalBlob = await responseUrl.blob();
-      const localResultUrl = URL.createObjectURL(finalBlob);
+        enhancerHeight,
+        onProgress: (keyLabel) => setEnhancerProgressKey(keyLabel),
+        signal: controller.signal,
+      });
 
       // Update image and push history
       setImages(prev => {
@@ -441,6 +385,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.log('Enhancement canceled by user.');
       } else {
         console.error('Enhancement failed:', err);
+        alert(err instanceof Error ? err.message : String(err));
       }
     } finally {
       setIsProcessingEnhancer(false);
@@ -457,7 +402,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isProcessingEnhancer, enhancerProgressKey, enhancerScale, enhancerDpi, enhancerDpiValue,
       enhancerResize, enhancerWidth, enhancerHeight, showEnhancerComparison, enhancerBeforeUrl, enhancerAfterUrl,
       setActiveImage, updateEditorState, updateEditedImage, addImages, removeImage,
-      undo, redo, pushHistory, setIsLayerMode, setActiveCropPreset,
+      undo, redo, pushHistory, setIsLayerMode, setActiveCropPreset, batchUpdateEditedImages, batchOpen, setBatchOpen,
       setBgOutputMode, setEdgeSmoothing, runBgPro, cancelBgPro, setShowBgComparison,
       setEnhancerScale, setEnhancerDpi, setEnhancerDpiValue, setEnhancerResize, setEnhancerWidth, setEnhancerHeight,
       runImageEnhancer, cancelImageEnhancer, setShowEnhancerComparison
