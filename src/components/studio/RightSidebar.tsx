@@ -39,7 +39,7 @@ export function RightSidebar() {
   const [printAllOpen, setPrintAllOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
 
-  const getRenderedCanvas = useCallback((targetW?: number, targetH?: number): Promise<HTMLCanvasElement> => {
+  const getRenderedCanvas = useCallback((targetW?: number, targetH?: number, forceTransparent?: boolean): Promise<HTMLCanvasElement> => {
     return new Promise((resolve) => {
       if (!activeImage) return;
       const img = new Image();
@@ -53,9 +53,11 @@ export function RightSidebar() {
         canvas.height = h;
         const ctx = canvas.getContext('2d')!;
 
-        if (editorState.backgroundColor !== 'transparent') {
+        if (!forceTransparent && editorState.backgroundColor !== 'transparent') {
           ctx.fillStyle = editorState.backgroundColor;
           ctx.fillRect(0, 0, w, h);
+        } else {
+          ctx.clearRect(0, 0, w, h);
         }
 
         ctx.filter = `brightness(${editorState.brightness}%) contrast(${editorState.contrast}%) saturate(${editorState.saturation}%)`;
@@ -90,27 +92,12 @@ export function RightSidebar() {
   const handleDownloadTransparent = async () => {
     if (!activeImage) return;
     const baseName = activeImage.name.replace(/\.[^.]+$/, '');
-    // Robust path: load the edited image (works for data: URLs, blob: URLs, and http(s)),
-    // re-encode through canvas as PNG so the alpha channel is always preserved
-    // regardless of the source MIME type or storage form.
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const im = new Image();
-      im.crossOrigin = 'anonymous';
-      im.onload = () => resolve(im);
-      im.onerror = reject;
-      im.src = activeImage.edited;
-    });
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d', { willReadFrequently: false })!;
-    // No background fill — preserve transparency
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0);
-    const blob: Blob = await new Promise((resolve, reject) =>
-      canvas.toBlob(b => b ? resolve(b) : reject(new Error('Encode failed')), 'image/png')
-    );
-    saveAs(blob, `${baseName}-transparent.png`);
+    const canvas = await getRenderedCanvas(undefined, undefined, true);
+    canvas.toBlob(blob => {
+      if (blob) {
+        saveAs(blob, `${baseName}-transparent.png`);
+      }
+    }, 'image/png');
   };
 
   const handleDownloadAll = async () => {
