@@ -46,19 +46,22 @@ export function StudioHeader() {
 
   return (
     <header className="h-14 flex items-center justify-between px-4 border-b border-border/60 bg-[#0f1116] shadow-sm z-50">
-      <div className="flex items-center gap-3">
-        <div className="h-8 w-8 rounded-full bg-red-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-red-600/20">
-          S
-        </div>
-        <div className="flex items-baseline gap-2">
-          <h1 className="text-lg font-bold tracking-tight text-white">
-            Photo Studio
-          </h1>
-          <span className="text-xs text-muted-foreground font-light hidden sm:inline">
-            — Online Photo Editor
-          </span>
-        </div>
-      </div>
+      <a 
+        href="https://www.shafinbd.com/" 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="flex items-center group focus:outline-none focus:ring-1 focus:ring-indigo-500 rounded-lg py-1 px-2 -ml-2 transition-all duration-200 hover:bg-white/5 shrink-0"
+      >
+        <img
+          src="https://lh3.googleusercontent.com/d/1NT-TUy9iukCF8OvcCbiPwJSYI708jBjy"
+          alt="ShafinBD Logo"
+          referrerPolicy="no-referrer"
+          className="h-8 w-auto block object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+          onError={(e) => {
+            e.currentTarget.src = "https://docs.google.com/uc?export=view&id=1NT-TUy9iukCF8OvcCbiPwJSYI708jBjy";
+          }}
+        />
+      </a>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Button
@@ -66,20 +69,22 @@ export function StudioHeader() {
             size="sm"
             onClick={undo}
             disabled={!canUndo}
-            className="h-9 px-4 border-border/40 bg-transparent hover:bg-muted/10 text-white gap-2 transition-all hover:scale-105 active:scale-95"
+            className="h-9 px-2 sm:px-4 border-border/40 bg-transparent hover:bg-muted/10 text-white gap-1.5 transition-all hover:scale-105 active:scale-95 shrink-0"
+            title="Undo"
           >
             <Undo2 className="h-4 w-4" />
-            <span className="text-xs font-medium">Undo</span>
+            <span className="text-xs font-medium hidden sm:inline">Undo</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={redo}
             disabled={!canRedo}
-            className="h-9 px-4 border-border/40 bg-transparent hover:bg-muted/10 text-white gap-2 transition-all hover:scale-105 active:scale-95"
+            className="h-9 px-2 sm:px-4 border-border/40 bg-transparent hover:bg-muted/10 text-white gap-1.5 transition-all hover:scale-105 active:scale-95 shrink-0"
+            title="Redo"
           >
             <Redo2 className="h-4 w-4" />
-            <span className="text-xs font-medium">Redo</span>
+            <span className="text-xs font-medium hidden sm:inline">Redo</span>
           </Button>
 
           {/* Keyboard Shortcuts Trigger and Dropdown */}

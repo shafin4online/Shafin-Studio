@@ -16,6 +16,39 @@ export function LayerCanvas({ image, scale, onScaleChange }: LayerCanvasProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  // Whenever the active image id or content changes, reset panning offset and auto-scale to fit snugly
+  useEffect(() => {
+    setOffset({ x: 0, y: 0 });
+    
+    const container = containerRef.current;
+    if (!container) return;
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = image.edited;
+    img.onload = () => {
+      // Leave responsive padding (less padding on mobile screens to maximize view space)
+      const padding = window.innerWidth < 768 ? 20 : 64;
+      const containerWidth = container.clientWidth - padding;
+      const containerHeight = container.clientHeight - padding;
+
+      if (containerWidth > 0 && containerHeight > 0 && img.width > 0 && img.height > 0) {
+        const scaleX = containerWidth / img.width;
+        const scaleY = containerHeight / img.height;
+        let fitScale = Math.min(scaleX, scaleY);
+
+        // Limit maximum automatic up-scale so small images don't look excessively blurry,
+        // but always shrink large photos to fit.
+        if (fitScale > 1.1) {
+          fitScale = 1.0;
+        }
+
+        const roundedScale = Math.max(0.1, Math.min(3, Math.round(fitScale * 100) / 100));
+        onScaleChange(roundedScale);
+      }
+    };
+  }, [image.id, image.edited, onScaleChange]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;

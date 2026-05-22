@@ -242,29 +242,31 @@ export function CenterPreview() {
 
       {/* Bottom controls overlay */}
       {!showAnyComparison && !activeCropPreset && activeImage && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl px-8 z-30 pointer-events-none">
-          <div className="bg-card/40 backdrop-blur-xl border border-border/40 rounded-full py-3 px-6 shadow-2xl pointer-events-auto flex flex-col gap-4">
-            <div className="flex items-center gap-6">
+        <div className="absolute bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm lg:max-w-2xl px-4 lg:px-8 z-30 pointer-events-none">
+          <div className="bg-card/75 backdrop-blur-xl border border-border/40 rounded-xl lg:rounded-full py-2.5 lg:py-3 px-4 lg:px-6 shadow-2xl pointer-events-auto">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3.5 lg:gap-6">
               <div className="flex items-center gap-3 flex-1">
-                <Maximize2 className="h-3.5 w-3.5 text-muted-foreground" />
+                <Maximize2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <Slider 
                   value={[editorState.imageScale]} 
                   min={50} max={150} step={1}
                   onValueChange={([val]) => updateEditorState({ imageScale: val })}
-                  className="flex-1"
+                  className="flex-1 cursor-zoom-in"
                 />
-                <span className="text-[10px] font-mono w-8 text-right text-blue-400">{editorState.imageScale}%</span>
+                <span className="text-[10px] font-mono w-8 text-right text-blue-400 shrink-0 font-bold">{editorState.imageScale}%</span>
               </div>
 
+              <div className="hidden lg:block w-px h-5 bg-border/40 shrink-0" />
+
               <div className="flex items-center gap-3 flex-1">
-                <RotateCw className="h-3.5 w-3.5 text-muted-foreground" />
+                <RotateCw className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <Slider 
                   value={[editorState.rotation]} 
                   min={-180} max={180} step={1}
                   onValueChange={([val]) => updateEditorState({ rotation: val })}
-                  className="flex-1"
+                  className="flex-1 cursor-ew-resize"
                 />
-                <span className="text-[10px] font-mono w-8 text-right text-blue-400">{editorState.rotation}°</span>
+                <span className="text-[10px] font-mono w-8 text-right text-blue-400 shrink-0 font-bold">{editorState.rotation}°</span>
               </div>
             </div>
           </div>

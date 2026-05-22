@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useRef, useEff
 import type { EditorState, StudioImage, CropPreset } from './studioTypes';
 import { processBackgroundRemoval } from './bgProService';
 import { processImageEnhancement } from './enhancerService';
+import { optimizeUploadImage } from '@/lib/imageOptimizer';
 
 export interface HistoryItem {
   editorState: EditorState;
@@ -195,10 +196,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const newImages: StudioImage[] = await Promise.all(
       files.map(async (file) => {
         const id = Math.random().toString(36).substring(7);
-        const url = URL.createObjectURL(file);
+        // Optimize uploaded image dynamically to reach high fidelity 300kb - 400kb size standard
+        const optimizedFile = await optimizeUploadImage(file);
+        const url = URL.createObjectURL(optimizedFile);
         return {
           id,
-          name: file.name,
+          name: optimizedFile.name,
           original: url,
           edited: url,
           thumbnail: url,
