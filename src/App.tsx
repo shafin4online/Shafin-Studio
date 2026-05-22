@@ -6,11 +6,23 @@ import { StudioHeader } from './components/studio/StudioHeader';
 import { RightSidebar } from './components/studio/RightSidebar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { SlidersHorizontal, FolderClosed, Undo2, Redo2 } from 'lucide-react';
+import { PerspectiveCropDialog } from './components/studio/PerspectiveCropDialog';
 
 const StudioWorkspace: React.FC = () => {
   const [mobileLeftOpen, setMobileLeftOpen] = useState(false);
   const [mobileRightOpen, setMobileRightOpen] = useState(false);
-  const { undo, redo, history, historyIndex } = useStudio();
+  const { 
+    undo, 
+    redo, 
+    history, 
+    historyIndex, 
+    isPerspectiveCropOpen, 
+    setIsPerspectiveCropOpen, 
+    activeImageId, 
+    images 
+  } = useStudio();
+
+  const activeImage = images.find(img => img.id === activeImageId) || null;
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
@@ -113,6 +125,12 @@ const StudioWorkspace: React.FC = () => {
           <span className="text-[9px] font-bold uppercase tracking-wider">Tray & Colors</span>
         </button>
       </div>
+
+      <PerspectiveCropDialog 
+        open={isPerspectiveCropOpen} 
+        onOpenChange={setIsPerspectiveCropOpen} 
+        image={activeImage} 
+      />
     </div>
   );
 };

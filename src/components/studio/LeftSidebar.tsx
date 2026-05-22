@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStudio } from '@/context/StudioContext';
-import { ChevronDown, Zap, Eraser, RotateCcw, SquareIcon } from 'lucide-react';
+import { ChevronDown, Zap, Eraser, RotateCcw, SquareIcon, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CROP_PRESETS } from '@/context/studioTypes';
@@ -18,6 +18,8 @@ export function LeftSidebar() {
     activeCropPreset,
     setActiveCropPreset,
     updateEditorState,
+    setIsPerspectiveCropOpen,
+    activeImageId,
   } = useStudio();
 
   const handleQuickAdjust = () => {
@@ -57,6 +59,17 @@ export function LeftSidebar() {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button 
+          variant="outline" 
+          disabled={!activeImageId}
+          className="w-full justify-start h-8 text-[11px] font-normal border-border bg-muted/30 gap-2 hover:bg-indigo-500/10 hover:text-indigo-200 transition-colors cursor-pointer"
+          onClick={() => setIsPerspectiveCropOpen(true)}
+          title="বাঁকা ছবিকে সোজা ও ফ্ল্যাট করতে এটি ব্যবহার করুন"
+        >
+          <Compass className="h-3.5 w-3.5 text-indigo-400" />
+          <span>CamScanner Smart Scan</span>
+        </Button>
 
         <Button 
           variant="outline" 

@@ -42,6 +42,9 @@ interface StudioContextType {
   enhancerBeforeUrl: string | null;
   enhancerAfterUrl: string | null;
 
+  isPerspectiveCropOpen: boolean;
+  setIsPerspectiveCropOpen: (open: boolean) => void;
+
   // Actions
   setActiveImage: (id: string | null) => void;
   updateEditorState: (updates: Partial<EditorState>) => void;
@@ -129,6 +132,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [showEnhancerComparison, setShowEnhancerComparison] = useState(false);
   const [enhancerBeforeUrl, setEnhancerBeforeUrl] = useState<string | null>(null);
   const [enhancerAfterUrl, setEnhancerAfterUrl] = useState<string | null>(null);
+
+  const [isPerspectiveCropOpen, setIsPerspectiveCropOpen] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const enhancerAbortControllerRef = useRef<AbortController | null>(null);
@@ -404,6 +409,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       bgBeforeUrl, bgAfterUrl, showBgComparison,
       isProcessingEnhancer, enhancerProgressKey, enhancerScale, enhancerDpi, enhancerDpiValue,
       enhancerResize, enhancerWidth, enhancerHeight, showEnhancerComparison, enhancerBeforeUrl, enhancerAfterUrl,
+      isPerspectiveCropOpen, setIsPerspectiveCropOpen,
       setActiveImage, updateEditorState, updateEditedImage, addImages, removeImage,
       undo, redo, pushHistory, setIsLayerMode, setActiveCropPreset, batchUpdateEditedImages, batchOpen, setBatchOpen,
       setBgOutputMode, setEdgeSmoothing, runBgPro, cancelBgPro, setShowBgComparison,

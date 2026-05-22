@@ -1,15 +1,9 @@
 import React, { useState } from 'react';
-import { Sparkles, Wand2, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { Sparkles, Wand2, ChevronDown, ChevronUp, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { useStudio } from '@/context/StudioContext';
-import { 
-  DropdownMenu, 
-  DropdownMenuTrigger, 
-  DropdownMenuContent, 
-  DropdownMenuItem 
-} from '@/components/ui/dropdown-menu';
 
 export function LeftSidebarAiTools() {
   const {
@@ -49,6 +43,27 @@ export function LeftSidebarAiTools() {
 
   const activeImage = images.find(img => img.id === activeImageId);
 
+  const handleBgClick = () => {
+    if (!activeImage) {
+      // Prompt user visually
+      alert('প্রথমে ইমেজ ট্রে থেকে একটি ছবি সিলেক্ট করুন!');
+      return;
+    }
+    if (!isProcessingBg) {
+      runBgPro(activeImageId!);
+    }
+  };
+
+  const handleEnhanceClick = () => {
+    if (!activeImage) {
+      alert('প্রথমে ইমেজ ট্রে থেকে একটি ছবি সিলেক্ট করুন!');
+      return;
+    }
+    if (!isProcessingEnhancer) {
+      runImageEnhancer(activeImageId!);
+    }
+  };
+
   return (
     <div className="p-3 space-y-3 shrink-0">
       
@@ -56,35 +71,54 @@ export function LeftSidebarAiTools() {
       <div className="border border-purple-500/20 bg-purple-500/5 rounded-md overflow-hidden transition-all duration-250">
         
         {/* Accordion Split Trigger Header */}
-        <div className="flex h-9 items-stretch justify-between bg-purple-950/20 border-b border-purple-500/20 select-none">
+        <div className="flex h-10 items-stretch justify-between bg-purple-950/20 border-b border-purple-500/20 select-none">
+          {/* Main action side - Starts background removal immediately */}
           <button
-            onClick={() => setIsBgProExpanded(!isBgProExpanded)}
-            className="flex-1 flex items-center gap-1.5 px-3.5 text-left hover:bg-purple-950/40 transition-colors"
+            onClick={handleBgClick}
+            disabled={isProcessingBg}
+            className={cn(
+              "flex-1 flex items-center gap-2 px-3 text-left transition-colors relative outline-none focus:outline-none",
+              activeImage 
+                ? "hover:bg-purple-950/45 cursor-pointer text-purple-200 active:bg-purple-900/35" 
+                : "text-slate-500 hover:bg-transparent cursor-not-allowed opacity-60"
+            )}
+            title={activeImage ? "ব্যাকগ্রাউন্ড রিমুভ করতে এখানে চাপুন" : "প্রথমে একটি ছবি সিলেক্ট করুন"}
           >
-            <Sparkles className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-            <span className="font-bold text-purple-200 text-[11px] uppercase tracking-wide">BG-Pro</span>
-            <span className="bg-purple-600 font-bold text-[7px] text-white px-1 leading-normal rounded uppercase select-none font-mono">
+            {isProcessingBg ? (
+              <Loader2 className="h-3.5 w-3.5 text-purple-400 animate-spin shrink-0" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+            )}
+            <div className="flex flex-col text-left">
+              <span className="font-extrabold text-[#eaeef6] text-[10.5px] uppercase tracking-wide leading-none">
+                {isProcessingBg ? 'Processing...' : 'BG-Pro'}
+              </span>
+              <span className="text-[7.5px] text-purple-400 font-semibold leading-none mt-0.5">Click to run AI</span>
+            </div>
+            <span className="bg-purple-600 font-extrabold text-[7px] text-white px-1 leading-normal rounded uppercase select-none font-mono ml-auto">
               SOTA
             </span>
           </button>
           
           <div className="w-px bg-purple-500/20 my-1.5 shrink-0" />
           
+          {/* Collapse toggle side */}
           <button
             onClick={() => setIsBgProExpanded(!isBgProExpanded)}
-            className="w-9 flex items-center justify-center text-purple-400 hover:text-purple-300 hover:bg-purple-950/40 transition-colors shrink-0"
+            className="w-10 flex items-center justify-center text-purple-400 hover:text-purple-300 hover:bg-purple-950/45 transition-colors shrink-0 outline-none focus:outline-none"
+            title="অপশন ও সেটিংস দেখুন"
           >
             {isBgProExpanded ? (
-              <ChevronUp className="h-3.5 w-3.5" />
+              <ChevronUp className="h-4 w-4 text-purple-300" />
             ) : (
-              <ChevronDown className="h-3.5 w-3.5" />
+              <ChevronDown className="h-4 w-4 text-purple-400" />
             )}
           </button>
         </div>
 
         {/* Accordion Expandable Inner Panel */}
         {isBgProExpanded && (
-          <div className="p-3 space-y-3.5 animate-fadeIn">
+          <div className="p-3 space-y-3.5 animate-fadeIn bg-purple-950/5">
             {/* AI Model Status indicator */}
             <div className="flex items-center justify-between text-[10px] select-none">
               <span className="text-slate-400 font-medium font-mono uppercase tracking-wider text-[9px]">AI Model</span>
@@ -103,7 +137,7 @@ export function LeftSidebarAiTools() {
 
             {/* Custom Output Fill styles matching reference Picture 4 */}
             <div className="space-y-1.5">
-              <span className="text-[9px] text-[#8e9aa8] uppercase tracking-wider font-bold block">Output:</span>
+              <span className="text-[9px] text-[#8e9aa8] uppercase tracking-wider font-bold block">Output Style:</span>
               <div className="grid grid-cols-3 gap-2">
                 {(['transparent', 'white', 'black'] as const).map((style) => {
                   const isActive = bgOutputMode === style;
@@ -181,22 +215,6 @@ export function LeftSidebarAiTools() {
               প্রথমবার ~40MB AI model download হবে (browser cache হবে)। সর্বোচ্চ quality, hair/edge perfect।
             </p>
 
-            {/* Run BG-Pro launcher action button */}
-            <Button
-              size="sm"
-              disabled={!activeImage || isProcessingBg}
-              onClick={() => runBgPro(activeImageId!)}
-              className={cn(
-                "w-full h-8 px-4 text-xs font-bold rounded shadow-lg transition-all text-white",
-                activeImage 
-                  ? "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 hover:shadow-purple-500/20 active:scale-98 cursor-pointer" 
-                  : "bg-muted/10 border border-border/50 text-slate-500 cursor-not-allowed"
-              )}
-            >
-              <Sparkles className="h-3.5 w-3.5 mr-1.5 text-purple-200 animate-pulse" />
-              {isProcessingBg ? 'Processing ON-DEVICE...' : 'Run BG-Pro'}
-            </Button>
-
             {!activeImage && (
               <p className="text-[9px] text-amber-400/80 leading-snug text-center font-medium mt-1">
                 * প্রথমে ইমেজ ট্রে থেকে একটি ছবি সিলেক্ট করুন
@@ -210,88 +228,78 @@ export function LeftSidebarAiTools() {
       <div className="border border-indigo-500/20 bg-indigo-500/5 rounded-md overflow-hidden transition-all duration-250">
         
         {/* Accordion Split Trigger Header */}
-        <div className="flex h-9 items-stretch justify-between bg-indigo-950/20 border-b border-indigo-500/20 select-none">
+        <div className="flex h-10 items-stretch justify-between bg-indigo-950/20 border-b border-indigo-500/20 select-none">
+          {/* Main action side - Starts image enhancement immediately */}
           <button
-            onClick={() => setIsEnhancerExpanded(!isEnhancerExpanded)}
-            className="flex-1 flex items-center gap-1.5 px-3.5 text-left hover:bg-indigo-950/40 transition-colors"
+            onClick={handleEnhanceClick}
+            disabled={isProcessingEnhancer}
+            className={cn(
+              "flex-1 flex items-center gap-2 px-3 text-left transition-colors relative outline-none focus:outline-none",
+              activeImage 
+                ? "hover:bg-indigo-950/45 cursor-pointer text-indigo-200 active:bg-indigo-900/35" 
+                : "text-slate-500 hover:bg-transparent cursor-not-allowed opacity-60"
+            )}
+            title={activeImage ? "ছবির রেজোলিউশন ও কোয়ালিটি বাড়াতে এখানে চাপুন" : "প্রথমে একটি ছবি সিলেক্ট করুন"}
           >
-            <Wand2 className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
-            <span className="font-bold text-indigo-200 text-[11px] uppercase tracking-wide">HF Upscale</span>
-            <span className="bg-indigo-600 font-bold text-[7px] text-white px-1 leading-normal rounded uppercase select-none font-mono">
+            {isProcessingEnhancer ? (
+              <Loader2 className="h-3.5 w-3.5 text-indigo-400 animate-spin shrink-0" />
+            ) : (
+              <Wand2 className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+            )}
+            <div className="flex flex-col text-left">
+              <span className="font-extrabold text-[#eaeef6] text-[10.5px] uppercase tracking-wide leading-none">
+                {isProcessingEnhancer ? 'Enhancing...' : `HF Enhance (${enhancerScale})`}
+              </span>
+              <span className="text-[7.5px] text-indigo-400 font-semibold leading-none mt-0.5">Click to run Cloud AI</span>
+            </div>
+            <span className="bg-indigo-600 font-extrabold text-[7px] text-white px-1 leading-normal rounded uppercase select-none font-mono ml-auto">
               CLOUD
             </span>
           </button>
           
           <div className="w-px bg-indigo-500/20 my-1.5 shrink-0" />
           
+          {/* Collapse toggle side */}
           <button
             onClick={() => setIsEnhancerExpanded(!isEnhancerExpanded)}
-            className="w-9 flex items-center justify-center text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/40 transition-colors shrink-0"
+            className="w-10 flex items-center justify-center text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/45 transition-colors shrink-0 outline-none focus:outline-none"
+            title="অপশন ও সেটিংস দেখুন"
           >
             {isEnhancerExpanded ? (
-              <ChevronUp className="h-3.5 w-3.5" />
+              <ChevronUp className="h-4 w-4 text-indigo-300" />
             ) : (
-              <ChevronDown className="h-3.5 w-3.5" />
+              <ChevronDown className="h-4 w-4 text-indigo-400" />
             )}
           </button>
         </div>
 
         {/* Accordion Expandable Inner Panel */}
         {isEnhancerExpanded && (
-          <div className="p-3 space-y-3.5 animate-fadeIn">
+          <div className="p-3 space-y-3.5 animate-fadeIn bg-indigo-950/5">
             
-            {/* Split Action Button Menu (Image 1 and 2 style) */}
-            <div className="flex items-center gap-1">
-              {/* Left Side: Clickable Primary Action Trigger with dynamic indicator label */}
-              <Button
-                size="sm"
-                disabled={!activeImage || isProcessingEnhancer}
-                onClick={() => runImageEnhancer(activeImageId!)}
-                className={cn(
-                  "flex-1 h-8 px-3 text-xs font-bold rounded shadow-lg transition-all text-white overflow-hidden text-ellipsis whitespace-nowrap",
-                  activeImage 
-                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 hover:shadow-indigo-500/20 active:scale-98 cursor-pointer" 
-                    : "bg-muted/10 border border-border/50 text-slate-500 cursor-not-allowed"
-                )}
-              >
-                <Wand2 className="h-3.5 w-3.5 mr-1.5 text-indigo-200 shrink-0" />
-                {isProcessingEnhancer ? 'Enhancing...' : `Enhance (${enhancerScale})`}
-              </Button>
-
-              {/* Right Side: Split Chevrondown button that opens the upscale value options */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-8 h-8 p-0 border border-indigo-500/30 bg-[#14161f] text-indigo-400 hover:text-indigo-200 hover:bg-[#1a1d29] rounded shrink-0 flex items-center justify-center cursor-pointer"
-                  >
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  className="w-32 bg-[#0d0e12] border border-slate-800 p-1 text-white shadow-2xl z-[100]" 
-                  align="end"
-                >
-                  {(['2x', '4x', '8x'] as const).map((lvl) => {
-                    const isSelected = enhancerScale === lvl;
-                    return (
-                      <DropdownMenuItem
-                        key={lvl}
-                        onClick={() => setEnhancerScale(lvl)}
-                        className={cn(
-                          "flex items-center justify-between px-2.5 py-1.5 text-[11px] font-normal cursor-pointer rounded transition-all",
-                          "text-slate-300 hover:bg-indigo-600 hover:text-white focus:bg-indigo-600 focus:text-white"
-                        )}
-                      >
-                        <span className="font-semibold">{lvl} upscale</span>
-                        {isSelected && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-                        )}
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
+            {/* Quick Segment Selector for Upscale Levels (Replaces the dropdown for instant toggling!) */}
+            <div className="space-y-1.5">
+              <span className="text-[9px] text-[#8e9aa8] uppercase tracking-wider font-bold block">Upscale Level:</span>
+              <div className="grid grid-cols-3 gap-1 bg-[#10121a] p-1 rounded-md border border-slate-900">
+                {(['2x', '4x', '8x'] as const).map((lvl) => {
+                  const isSelected = enhancerScale === lvl;
+                  return (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => setEnhancerScale(lvl)}
+                      className={cn(
+                        "py-1 text-center font-extrabold text-[10px] rounded transition-all cursor-pointer",
+                        isSelected 
+                          ? "bg-indigo-600 text-white shadow" 
+                          : "text-slate-400 hover:text-white hover:bg-indigo-950/20"
+                      )}
+                    >
+                      {lvl}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Rest of custom parameter panels inside the expandable accordion */}
@@ -321,7 +329,7 @@ export function LeftSidebarAiTools() {
                       min={72}
                       max={1200}
                       onChange={(e) => setEnhancerDpiValue(Math.max(1, parseInt(e.target.value) || 0))}
-                      className="w-16 h-5 bg-[#0d0e12] border border-border/80 rounded text-center text-[10px] text-white px-1 outline-none"
+                      className="w-16 h-5 bg-[#0d0e12] border border-border/80 rounded text-center text-[10px] text-white px-1 outline-none font-mono"
                     />
                     <span className="text-[8px] text-muted-foreground font-mono">px/in</span>
                   </div>
@@ -343,25 +351,25 @@ export function LeftSidebarAiTools() {
                 {enhancerResize && (
                   <div className="grid grid-cols-2 gap-1.5 pt-1 animate-fadeIn">
                     <div className="flex items-center gap-1">
-                      <span className="text-[8px] text-slate-500">W:</span>
+                      <span className="text-[8px] text-slate-500 font-mono">W:</span>
                       <input
                         type="number"
                         value={enhancerWidth}
                         min={64}
                         max={4000}
                         onChange={(e) => setEnhancerWidth(Math.max(1, parseInt(e.target.value) || 0))}
-                        className="w-full h-5 bg-[#0d0e12] border border-border/80 rounded text-center text-[10px] text-white px-1 outline-none"
+                        className="w-full h-5 bg-[#0d0e12] border border-border/80 rounded text-center text-[10px] text-white px-1 outline-none font-mono"
                       />
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="text-[8px] text-slate-500">H:</span>
+                      <span className="text-[8px] text-slate-500 font-mono">H:</span>
                       <input
                         type="number"
                         value={enhancerHeight}
                         min={64}
                         max={4000}
                         onChange={(e) => setEnhancerHeight(Math.max(1, parseInt(e.target.value) || 0))}
-                        className="w-full h-5 bg-[#0d0e12] border border-border/80 rounded text-center text-[10px] text-white px-1 outline-none"
+                        className="w-full h-5 bg-[#0d0e12] border border-border/80 rounded text-center text-[10px] text-white px-1 outline-none font-mono"
                       />
                     </div>
                   </div>
