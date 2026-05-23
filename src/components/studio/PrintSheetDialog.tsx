@@ -1,15 +1,21 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2 } from 'lucide-react';
+import { useStudio } from '@/context/StudioContext';
 
 export const PRINT_PRESETS = [
-  { name: 'Passport', widthPx: 400, heightPx: 500, widthMm: 40, heightMm: 50 },
-  { name: '3R', widthPx: 1050, heightPx: 1500, widthMm: 89, heightMm: 127 },
-  { name: '4R', widthPx: 1200, heightPx: 1800, widthMm: 102, heightMm: 152 },
+  { name: 'NID Card (85.6x53.98mm)', widthPx: 1011, heightPx: 638, widthMm: 85.6, heightMm: 53.98 },
+  { name: 'Passport Portrait (40x50mm)', widthPx: 472, heightPx: 591, widthMm: 40, heightMm: 50 },
+  { name: 'Passport Portrait (39x49mm)', widthPx: 461, heightPx: 579, widthMm: 39, heightMm: 49 },
+  { name: 'Passport Landscape (49x39mm)', widthPx: 579, heightPx: 461, widthMm: 49, heightMm: 39 },
+  { name: 'Stamp Size (20x25mm)', widthPx: 236, heightPx: 295, widthMm: 20, heightMm: 25 },
+  { name: '3R (89x127mm)', widthPx: 1050, heightPx: 1500, widthMm: 89, heightMm: 127 },
+  { name: '4R (102x152mm)', widthPx: 1200, heightPx: 1800, widthMm: 102, heightMm: 152 },
+  { name: '5R (127x178mm)', widthPx: 1500, heightPx: 2100, widthMm: 127, heightMm: 178 },
 ];
 
 export interface PrintSlot {
@@ -24,18 +30,23 @@ interface PrintSheetDialogProps {
 }
 
 export function PrintSheetDialog({ open, onOpenChange, onPrint }: PrintSheetDialogProps) {
-  const [slots, setSlots] = useState<PrintSlot[]>([{ presetIndex: 0, count: 4 }]);
-  const [page, setPage] = useState({ widthMm: 210, heightMm: 297 }); // A4
-  const [gap, setGap] = useState(2);
+  const {
+    printSlots,
+    setPrintSlots,
+    printPage,
+    setPrintPage,
+    printGap,
+    setPrintGap,
+  } = useStudio();
 
-  const addSlot = () => setSlots([...slots, { presetIndex: 0, count: 1 }]);
-  const removeSlot = (index: number) => setSlots(slots.filter((_, i) => i !== index));
+  const addSlot = () => setPrintSlots([...printSlots, { presetIndex: 0, count: 1 }]);
+  const removeSlot = (index: number) => setPrintSlots(printSlots.filter((_, i) => i !== index));
   const updateSlot = (index: number, updates: Partial<PrintSlot>) => {
-    setSlots(slots.map((s, i) => i === index ? { ...s, ...updates } : s));
+    setPrintSlots(printSlots.map((s, i) => i === index ? { ...s, ...updates } : s));
   };
 
   const handlePrint = () => {
-    onPrint(slots, page, gap);
+    onPrint(printSlots, printPage, printGap);
   };
 
   return (
@@ -48,7 +59,7 @@ export function PrintSheetDialog({ open, onOpenChange, onPrint }: PrintSheetDial
         <div className="space-y-6 py-4">
           <div className="space-y-3">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">Print Slots</Label>
-            {slots.map((slot, index) => (
+            {printSlots.map((slot, index) => (
               <div key={index} className="flex items-center gap-2">
                 <Select 
                   value={slot.presetIndex.toString()} 
@@ -71,10 +82,10 @@ export function PrintSheetDialog({ open, onOpenChange, onPrint }: PrintSheetDial
                   min="1"
                 />
                 <Button 
-                  variant="ghost" 
+                   variant="ghost" 
                   size="icon" 
                   onClick={() => removeSlot(index)}
-                  disabled={slots.length === 1}
+                  disabled={printSlots.length === 1}
                   className="h-9 w-9 text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -91,8 +102,8 @@ export function PrintSheetDialog({ open, onOpenChange, onPrint }: PrintSheetDial
               <Label className="text-xs">Page Width (mm)</Label>
               <Input 
                 type="number" 
-                value={page.widthMm} 
-                onChange={(e) => setPage({ ...page, widthMm: parseInt(e.target.value) || 0 })}
+                value={printPage.widthMm} 
+                onChange={(e) => setPrintPage({ ...printPage, widthMm: parseInt(e.target.value) || 0 })}
                 className="h-9"
               />
             </div>
@@ -100,8 +111,8 @@ export function PrintSheetDialog({ open, onOpenChange, onPrint }: PrintSheetDial
               <Label className="text-xs">Page Height (mm)</Label>
               <Input 
                 type="number" 
-                value={page.heightMm} 
-                onChange={(e) => setPage({ ...page, heightMm: parseInt(e.target.value) || 0 })}
+                value={printPage.heightMm} 
+                onChange={(e) => setPrintPage({ ...printPage, heightMm: parseInt(e.target.value) || 0 })}
                 className="h-9"
               />
             </div>
@@ -111,8 +122,8 @@ export function PrintSheetDialog({ open, onOpenChange, onPrint }: PrintSheetDial
             <Label className="text-xs">Gap between photos (mm)</Label>
             <Input 
               type="number" 
-              value={gap} 
-              onChange={(e) => setGap(parseInt(e.target.value) || 0)}
+              value={printGap} 
+              onChange={(e) => setPrintGap(parseInt(e.target.value) || 0)}
               className="h-9"
             />
           </div>

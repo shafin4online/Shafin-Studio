@@ -32,7 +32,13 @@ export interface CropPreset {
   isManual?: boolean;
 }
 
+export interface PrintSlot {
+  presetIndex: number;
+  count: number;
+}
+
 export const CROP_PRESETS: CropPreset[] = [
+  { id: 'nid-card', label: 'NID Card', subLabel: '85.6×53.98mm @300dpi', aspect: 85.6 / 53.98, widthPx: 1011, heightPx: 638 },
   { id: 'passport-portrait', label: 'Passport Portrait', subLabel: '39×49mm @300dpi', aspect: 39 / 49 },
   { id: 'passport-landscape', label: 'Passport Landscape', subLabel: '49×39mm @300dpi', aspect: 49 / 39 },
   { id: 'stamp-size', label: 'Stamp Size', subLabel: '20×25mm @300dpi', aspect: 20 / 25 },

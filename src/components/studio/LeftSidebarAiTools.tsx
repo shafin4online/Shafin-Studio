@@ -32,6 +32,7 @@ export function LeftSidebarAiTools() {
     enhancerHeight,
     setEnhancerHeight,
     runImageEnhancer,
+    setMobileLeftOpen,
   } = useStudio();
 
   // Collapsible panels state
@@ -51,6 +52,7 @@ export function LeftSidebarAiTools() {
     }
     if (!isProcessingBg) {
       runBgPro(activeImageId!);
+      setMobileLeftOpen(false);
     }
   };
 
@@ -61,6 +63,7 @@ export function LeftSidebarAiTools() {
     }
     if (!isProcessingEnhancer) {
       runImageEnhancer(activeImageId!);
+      setMobileLeftOpen(false);
     }
   };
 

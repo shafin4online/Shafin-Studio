@@ -5,12 +5,10 @@ import { StudioProvider, useStudio } from './context/StudioContext';
 import { StudioHeader } from './components/studio/StudioHeader';
 import { RightSidebar } from './components/studio/RightSidebar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { SlidersHorizontal, FolderClosed, Undo2, Redo2 } from 'lucide-react';
+import { SlidersHorizontal, FolderClosed, Undo2, Redo2, Home } from 'lucide-react';
 import { PerspectiveCropDialog } from './components/studio/PerspectiveCropDialog';
 
 const StudioWorkspace: React.FC = () => {
-  const [mobileLeftOpen, setMobileLeftOpen] = useState(false);
-  const [mobileRightOpen, setMobileRightOpen] = useState(false);
   const { 
     undo, 
     redo, 
@@ -19,7 +17,11 @@ const StudioWorkspace: React.FC = () => {
     isPerspectiveCropOpen, 
     setIsPerspectiveCropOpen, 
     activeImageId, 
-    images 
+    images,
+    mobileLeftOpen,
+    setMobileLeftOpen,
+    mobileRightOpen,
+    setMobileRightOpen
   } = useStudio();
 
   const activeImage = images.find(img => img.id === activeImageId) || null;
@@ -78,14 +80,26 @@ const StudioWorkspace: React.FC = () => {
       </Sheet>
 
       {/* Mobile Sticky Bottom Action Tab Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#090a0d] border-t border-border/40 px-4 flex items-center justify-around z-40 shadow-2xl">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#090a0d] border-t border-border/40 px-2 flex items-center justify-around z-40 shadow-2xl">
+        {/* Main App Home Link */}
+        <a
+          href="https://www.shafinbd.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition-all duration-200 hover:scale-105 active:scale-95 h-12 w-14 text-center cursor-pointer"
+          title="Go to main app main page"
+        >
+          <Home className="h-5 w-5 text-indigo-400" />
+          <span className="text-[9px] font-bold uppercase tracking-wider">Home</span>
+        </a>
+
         {/* Left Drawer Trigger */}
         <button
           onClick={() => {
             setMobileRightOpen(false);
             setMobileLeftOpen(true);
           }}
-          className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition-all duration-200 hover:scale-105 active:scale-95 h-12 w-16"
+          className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition-all duration-200 hover:scale-105 active:scale-95 h-12 w-14 text-center cursor-pointer"
         >
           <SlidersHorizontal className="h-5 w-5 text-purple-400 animate-pulse" />
           <span className="text-[9px] font-bold uppercase tracking-wider">AI & Filters</span>
@@ -95,7 +109,7 @@ const StudioWorkspace: React.FC = () => {
         <button
           onClick={undo}
           disabled={!canUndo}
-          className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all duration-200 hover:scale-110 active:scale-95 h-12 w-12"
+          className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all duration-200 hover:scale-110 active:scale-95 h-13 w-10 text-center cursor-pointer"
           title="Undo Action"
         >
           <Undo2 className="h-5 w-5 text-amber-500" />
@@ -106,7 +120,7 @@ const StudioWorkspace: React.FC = () => {
         <button
           onClick={redo}
           disabled={!canRedo}
-          className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all duration-200 hover:scale-110 active:scale-95 h-12 w-12"
+          className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-all duration-200 hover:scale-110 active:scale-95 h-13 w-10 text-center cursor-pointer"
           title="Redo Action"
         >
           <Redo2 className="h-5 w-5 text-emerald-500" />
@@ -119,7 +133,7 @@ const StudioWorkspace: React.FC = () => {
             setMobileLeftOpen(false);
             setMobileRightOpen(true);
           }}
-          className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition-all duration-200 hover:scale-105 active:scale-95 h-12 w-16"
+          className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition-all duration-200 hover:scale-105 active:scale-95 h-12 w-14 text-center cursor-pointer"
         >
           <FolderClosed className="h-5 w-5 text-blue-400" />
           <span className="text-[9px] font-bold uppercase tracking-wider">Tray & Colors</span>

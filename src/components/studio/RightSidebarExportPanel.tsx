@@ -13,6 +13,7 @@ export function RightSidebarExportPanel() {
     activeImageId,
     editorState,
     addImages,
+    setMobileRightOpen,
   } = useStudio();
 
   const activeImage = images.find(i => i.id === activeImageId);
@@ -167,37 +168,47 @@ export function RightSidebarExportPanel() {
       <div className="p-3 space-y-1.5 mt-auto pb-8 select-none">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-bold">Export</p>
         <button
-          onClick={() => setPrintOpen(true)}
+          onClick={() => {
+            setPrintOpen(true);
+          }}
           disabled={!activeImage}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40"
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40 cursor-pointer"
         >
           <Printer className="h-3.5 w-3.5" /> Print Sheet
         </button>
         <button
-          onClick={() => setPrintAllOpen(true)}
+          onClick={() => {
+            setPrintAllOpen(true);
+          }}
           disabled={images.length === 0}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40"
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40 cursor-pointer"
         >
           <Printer className="h-3.5 w-3.5" /> Print All (Tray)
         </button>
         <button
-          onClick={handleDownload}
+          onClick={() => {
+            handleDownload();
+          }}
           disabled={!activeImage}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40"
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40 cursor-pointer"
         >
           <Download className="h-3.5 w-3.5" /> Download
         </button>
         <button
-          onClick={handleDownloadTransparent}
+          onClick={() => {
+            handleDownloadTransparent();
+          }}
           disabled={!activeImage}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-violet-500/15 text-violet-200 border border-violet-500/30 hover:bg-violet-500/25 transition-colors disabled:opacity-40"
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-violet-500/15 text-violet-200 border border-violet-500/30 hover:bg-violet-500/25 transition-colors disabled:opacity-40 cursor-pointer"
         >
           <Download className="h-3.5 w-3.5" /> PNG (Transparent)
         </button>
         <button
-          onClick={handleDownloadAll}
+          onClick={() => {
+            handleDownloadAll();
+          }}
           disabled={images.length === 0}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40"
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors disabled:opacity-40 cursor-pointer"
         >
           <Archive className="h-3.5 w-3.5" /> Download All (ZIP)
         </button>

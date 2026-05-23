@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import type { EditorState, StudioImage, CropPreset } from './studioTypes';
+import type { EditorState, StudioImage, CropPreset, PrintSlot } from './studioTypes';
 import { processBackgroundRemoval } from './bgProService';
 import { processImageEnhancement } from './enhancerService';
 import { optimizeUploadImage } from '@/lib/imageOptimizer';
@@ -44,6 +44,19 @@ interface StudioContextType {
 
   isPerspectiveCropOpen: boolean;
   setIsPerspectiveCropOpen: (open: boolean) => void;
+
+  mobileLeftOpen: boolean;
+  setMobileLeftOpen: (open: boolean) => void;
+  mobileRightOpen: boolean;
+  setMobileRightOpen: (open: boolean) => void;
+
+  // Print Sheet Configuration (Persisted)
+  printSlots: PrintSlot[];
+  setPrintSlots: (slots: PrintSlot[]) => void;
+  printPage: { widthMm: number; heightMm: number };
+  setPrintPage: (page: { widthMm: number; heightMm: number }) => void;
+  printGap: number;
+  setPrintGap: (gap: number) => void;
 
   // Actions
   setActiveImage: (id: string | null) => void;
@@ -134,6 +147,40 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [enhancerAfterUrl, setEnhancerAfterUrl] = useState<string | null>(null);
 
   const [isPerspectiveCropOpen, setIsPerspectiveCropOpen] = useState(false);
+
+  const [mobileLeftOpen, setMobileLeftOpen] = useState(false);
+  const [mobileRightOpen, setMobileRightOpen] = useState(false);
+
+  // Print sheet configuration persisted states
+  const [printSlots, setPrintSlotsState] = useState<PrintSlot[]>(() => {
+    const saved = localStorage.getItem('studio_print_slots');
+    return saved ? JSON.parse(saved) : [{ presetIndex: 0, count: 4 }];
+  });
+
+  const [printPage, setPrintPageState] = useState<{ widthMm: number; heightMm: number }>(() => {
+    const saved = localStorage.getItem('studio_print_page');
+    return saved ? JSON.parse(saved) : { widthMm: 210, heightMm: 297 };
+  });
+
+  const [printGap, setPrintGapState] = useState<number>(() => {
+    const saved = localStorage.getItem('studio_print_gap');
+    return saved ? parseInt(saved) : 2;
+  });
+
+  const setPrintSlots = useCallback((newValue: PrintSlot[]) => {
+    setPrintSlotsState(newValue);
+    localStorage.setItem('studio_print_slots', JSON.stringify(newValue));
+  }, []);
+
+  const setPrintPage = useCallback((newValue: { widthMm: number; heightMm: number }) => {
+    setPrintPageState(newValue);
+    localStorage.setItem('studio_print_page', JSON.stringify(newValue));
+  }, []);
+
+  const setPrintGap = useCallback((newValue: number) => {
+    setPrintGapState(newValue);
+    localStorage.setItem('studio_print_gap', newValue.toString());
+  }, []);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const enhancerAbortControllerRef = useRef<AbortController | null>(null);
@@ -410,6 +457,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isProcessingEnhancer, enhancerProgressKey, enhancerScale, enhancerDpi, enhancerDpiValue,
       enhancerResize, enhancerWidth, enhancerHeight, showEnhancerComparison, enhancerBeforeUrl, enhancerAfterUrl,
       isPerspectiveCropOpen, setIsPerspectiveCropOpen,
+      mobileLeftOpen, setMobileLeftOpen, mobileRightOpen, setMobileRightOpen,
+      printSlots, setPrintSlots, printPage, setPrintPage, printGap, setPrintGap,
       setActiveImage, updateEditorState, updateEditedImage, addImages, removeImage,
       undo, redo, pushHistory, setIsLayerMode, setActiveCropPreset, batchUpdateEditedImages, batchOpen, setBatchOpen,
       setBgOutputMode, setEdgeSmoothing, runBgPro, cancelBgPro, setShowBgComparison,

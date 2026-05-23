@@ -27,6 +27,7 @@ export function RightSidebar() {
     images, activeImageId, setActiveImage, removeImage,
     editorState, updateEditorState, addImages,
     isLayerMode, setIsLayerMode, batchOpen, setBatchOpen,
+    setMobileRightOpen,
   } = useStudio();
 
   const [mergeOpen, setMergeOpen] = useState(false);
@@ -54,11 +55,23 @@ export function RightSidebar() {
             <ImageTray
               images={images}
               activeImageId={activeImageId}
-              onSelectImage={setActiveImage}
+              onSelectImage={(id) => {
+                setActiveImage(id);
+                setMobileRightOpen(false);
+              }}
               onRemoveImage={removeImage}
-              onMergeOpen={() => setMergeOpen(true)}
-              onLayerMode={() => setIsLayerMode(true)}
-              onBatchOpen={() => setBatchOpen(true)}
+              onMergeOpen={() => {
+                setMergeOpen(true);
+                setMobileRightOpen(false);
+              }}
+              onLayerMode={() => {
+                setIsLayerMode(true);
+                setMobileRightOpen(false);
+              }}
+              onBatchOpen={() => {
+                setBatchOpen(true);
+                setMobileRightOpen(false);
+              }}
             />
           </div>
 
@@ -71,20 +84,23 @@ export function RightSidebar() {
             <div className="grid grid-cols-4 gap-2">
               {BG_PRESETS.map(preset => (
                 <button
-                  key={preset.value}
-                  onClick={() => updateEditorState({ backgroundColor: preset.value })}
-                  className={cn(
-                    "w-full aspect-square rounded-md border transition-all",
-                    editorState.backgroundColor === preset.value
-                      ? "border-primary ring-1 ring-primary scale-110"
-                      : "border-border hover:border-muted-foreground"
-                  )}
-                  style={{
-                    background: preset.value === 'transparent'
-                      ? 'repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--studio-surface)) 0% 50%) 50% / 12px 12px'
-                      : preset.value,
-                  }}
-                  title={preset.label}
+                   key={preset.value}
+                   onClick={() => {
+                     updateEditorState({ backgroundColor: preset.value });
+                     setMobileRightOpen(false);
+                   }}
+                   className={cn(
+                     "w-full aspect-square rounded-md border transition-all",
+                     editorState.backgroundColor === preset.value
+                       ? "border-primary ring-1 ring-primary scale-110"
+                       : "border-border hover:border-muted-foreground"
+                   )}
+                   style={{
+                     background: preset.value === 'transparent'
+                       ? 'repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--studio-surface)) 0% 50%) 50% / 12px 12px'
+                       : preset.value,
+                   }}
+                   title={preset.label}
                 />
               ))}
 
@@ -109,7 +125,10 @@ export function RightSidebar() {
                     <Input
                       type="color"
                       value={editorState.backgroundColor === 'transparent' ? '#ffffff' : editorState.backgroundColor}
-                      onChange={(e) => updateEditorState({ backgroundColor: e.target.value })}
+                      onChange={(e) => {
+                        updateEditorState({ backgroundColor: e.target.value });
+                        // Don't auto-close immediately on sliders, but custom selection is ok
+                      }}
                       className="w-full h-10 p-1 cursor-pointer"
                     />
                     <Input
@@ -138,7 +157,10 @@ export function RightSidebar() {
               <Checkbox
                 id="border-toggle"
                 checked={editorState.borderEnabled}
-                onCheckedChange={(checked) => updateEditorState({ borderEnabled: !!checked })}
+                onCheckedChange={(checked) => {
+                  updateEditorState({ borderEnabled: !!checked });
+                  setMobileRightOpen(false);
+                }}
               />
               <label htmlFor="border-toggle" className="text-[11px] text-muted-foreground cursor-pointer">
                 2px Border
