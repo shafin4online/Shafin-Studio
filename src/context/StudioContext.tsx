@@ -50,6 +50,10 @@ interface StudioContextType {
   mobileRightOpen: boolean;
   setMobileRightOpen: (open: boolean) => void;
 
+  // Active View (Classic Studio vs AI Editor)
+  activeView: 'studio' | 'ai-editor';
+  setActiveView: (view: 'studio' | 'ai-editor') => void;
+
   // Print Sheet Configuration (Persisted)
   printSlots: PrintSlot[];
   setPrintSlots: (slots: PrintSlot[]) => void;
@@ -150,6 +154,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [mobileLeftOpen, setMobileLeftOpen] = useState(false);
   const [mobileRightOpen, setMobileRightOpen] = useState(false);
+
+  // Active View (Classic Studio vs AI Editor)
+  const [activeView, setActiveView] = useState<'studio' | 'ai-editor'>('studio');
 
   // Print sheet configuration persisted states
   const [printSlots, setPrintSlotsState] = useState<PrintSlot[]>(() => {
@@ -458,6 +465,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       enhancerResize, enhancerWidth, enhancerHeight, showEnhancerComparison, enhancerBeforeUrl, enhancerAfterUrl,
       isPerspectiveCropOpen, setIsPerspectiveCropOpen,
       mobileLeftOpen, setMobileLeftOpen, mobileRightOpen, setMobileRightOpen,
+      activeView, setActiveView,
       printSlots, setPrintSlots, printPage, setPrintPage, printGap, setPrintGap,
       setActiveImage, updateEditorState, updateEditedImage, addImages, removeImage,
       undo, redo, pushHistory, setIsLayerMode, setActiveCropPreset, batchUpdateEditedImages, batchOpen, setBatchOpen,

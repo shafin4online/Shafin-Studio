@@ -82,6 +82,129 @@ async function startServer() {
     }
   });
 
+  // Import API Manager modules
+  const { taskRouter, vault, apiSelector } = await import("./server/apiManager/index");
+
+  // Admin API: Get API pool summary & key statistics
+  app.get("/api/admin/api-pool", (req, res) => {
+    try {
+      const summary = apiSelector.getPoolSummary();
+      const keys = vault.getMaskedCredentials();
+      res.json({ success: true, summary, keys });
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // Admin API: Reset all cooldowns back to active
+  app.post("/api/admin/api-pool/reset-cooldowns", (req, res) => {
+    try {
+      vault.resetAllCooldowns();
+      const summary = apiSelector.getPoolSummary();
+      const keys = vault.getMaskedCredentials();
+      res.json({ success: true, message: "All cooldowns reset successfully", summary, keys });
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // Admin API: Add new Google API key to pool at runtime
+  app.post("/api/admin/api-pool/key", (req, res) => {
+    try {
+      const { apiKey, name, priority } = req.body;
+      if (!apiKey || typeof apiKey !== "string") {
+        return res.status(400).json({ error: "apiKey string is required" });
+      }
+
+      const count = vault.getAllCredentials().length + 1;
+      const keyName = name?.trim() || `Google Account ${String(count).padStart(2, '0')}`;
+      const newCred = vault.addCredential({
+        provider: "google",
+        name: keyName,
+        apiKey: apiKey.trim(),
+        priority: priority || 2
+      });
+
+      res.json({ 
+        success: true, 
+        message: `Registered ${newCred.id} successfully`,
+        id: newCred.id,
+        summary: apiSelector.getPoolSummary(),
+        keys: vault.getMaskedCredentials()
+      });
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // Admin API: Toggle key enabled/disabled
+  app.post("/api/admin/api-pool/toggle", (req, res) => {
+    try {
+      const { id, enabled } = req.body;
+      if (!id) {
+        return res.status(400).json({ error: "Key id is required" });
+      }
+      vault.toggleEnable(id, Boolean(enabled));
+      res.json({ success: true, summary: apiSelector.getPoolSummary(), keys: vault.getMaskedCredentials() });
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // AI Editor endpoint powered by Centralized API Pool & Task Router
+  app.post("/api/ai-editor", async (req, res) => {
+    try {
+      const { image, leftImage, rightImage, prompt, size, task, dressId, bgHex } = req.body;
+
+      if (!image && !leftImage && !rightImage) {
+        return res.status(400).json({ error: "No image provided for AI processing" });
+      }
+
+      const totalPoolKeys = vault.getAllCredentials().length;
+      if (totalPoolKeys === 0) {
+        console.warn("[Server] No API keys in pool. Returning demo status.");
+        return res.json({ 
+          success: false, 
+          configured: false,
+          message: "No Gemini API keys are configured in the pool. Please add a key in .env or the API Manager.",
+          prompt 
+        });
+      }
+
+      // Resolve Task Type
+      const taskType = taskRouter.resolveTaskType({ task, size, dressId, bgHex });
+
+      // Execute through Task Router with Automatic Failover
+      const execution = await taskRouter.executeWithFailover({
+        task: taskType,
+        image,
+        leftImage,
+        rightImage,
+        prompt,
+        size
+      });
+
+      if (execution.success && execution.image) {
+        return res.json({ 
+          success: true, 
+          image: execution.image,
+          usedApiId: execution.usedApiId,
+          attempts: execution.attempts
+        });
+      }
+
+      return res.json({ 
+        success: false, 
+        message: execution.error || "Model completed without returning an image part.",
+        attempts: execution.attempts
+      });
+    } catch (error: unknown) {
+      console.error("[Server] AI generation router error:", error);
+      const errorMessage = error instanceof Error ? error.message : "AI generation failed";
+      res.status(500).json({ error: errorMessage });
+    }
+  });
+
   // Vite middleware in non-production mode
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

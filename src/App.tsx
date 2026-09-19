@@ -5,8 +5,9 @@ import { StudioProvider, useStudio } from './context/StudioContext';
 import { StudioHeader } from './components/studio/StudioHeader';
 import { RightSidebar } from './components/studio/RightSidebar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { SlidersHorizontal, FolderClosed, Undo2, Redo2, Home } from 'lucide-react';
+import { SlidersHorizontal, FolderClosed, Undo2, Redo2, Home, Sparkles } from 'lucide-react';
 import { PerspectiveCropDialog } from './components/studio/PerspectiveCropDialog';
+import { AiEditorView } from './modules/AiEditor/AiEditorView';
 
 const StudioWorkspace: React.FC = () => {
   const { 
@@ -21,13 +22,42 @@ const StudioWorkspace: React.FC = () => {
     mobileLeftOpen,
     setMobileLeftOpen,
     mobileRightOpen,
-    setMobileRightOpen
+    setMobileRightOpen,
+    activeView,
+    setActiveView
   } = useStudio();
 
   const activeImage = images.find(img => img.id === activeImageId) || null;
 
   const canUndo = historyIndex > 0;
   const canRedo = historyIndex < history.length - 1;
+
+  if (activeView === 'ai-editor') {
+    return (
+      <div className="flex flex-col h-screen bg-[#0c101d] text-foreground overflow-hidden pb-16 lg:pb-0">
+        <StudioHeader />
+        <div className="flex-1 overflow-hidden relative">
+          <AiEditorView onBackToStudio={() => setActiveView('studio')} />
+        </div>
+
+        {/* Mobile Sticky Bottom Bar in AI Editor */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#090a0d] border-t border-border/40 px-2 flex items-center justify-around z-40 shadow-2xl">
+          <button
+            onClick={() => setActiveView('studio')}
+            className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition-all duration-200 hover:scale-105 active:scale-95 h-12 w-20 text-center cursor-pointer"
+          >
+            <Home className="h-5 w-5 text-indigo-400" />
+            <span className="text-[9px] font-bold uppercase tracking-wider">Classic Studio</span>
+          </button>
+
+          <div className="flex flex-col items-center justify-center gap-1 text-amber-400 font-bold h-12 w-20 text-center">
+            <Sparkles className="h-5 w-5 text-amber-400 animate-pulse" />
+            <span className="text-[9px] font-bold uppercase tracking-wider">AI Editor</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden pb-16 lg:pb-0">
@@ -93,6 +123,16 @@ const StudioWorkspace: React.FC = () => {
           <span className="text-[9px] font-bold uppercase tracking-wider">Home</span>
         </a>
 
+        {/* AI Editor Quick Switcher on Mobile */}
+        <button
+          onClick={() => setActiveView('ai-editor')}
+          className="flex flex-col items-center justify-center gap-1 text-amber-400 hover:text-amber-300 transition-all duration-200 hover:scale-105 active:scale-95 h-12 w-14 text-center cursor-pointer"
+          title="Open AI Editor"
+        >
+          <Sparkles className="h-5 w-5 text-amber-400 animate-pulse" />
+          <span className="text-[9px] font-bold uppercase tracking-wider">AI Edit</span>
+        </button>
+
         {/* Left Drawer Trigger */}
         <button
           onClick={() => {
@@ -101,8 +141,8 @@ const StudioWorkspace: React.FC = () => {
           }}
           className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition-all duration-200 hover:scale-105 active:scale-95 h-12 w-14 text-center cursor-pointer"
         >
-          <SlidersHorizontal className="h-5 w-5 text-purple-400 animate-pulse" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">AI & Filters</span>
+          <SlidersHorizontal className="h-5 w-5 text-purple-400" />
+          <span className="text-[9px] font-bold uppercase tracking-wider">Filters</span>
         </button>
 
         {/* Dynamic Mobile Undo Button */}
@@ -136,7 +176,7 @@ const StudioWorkspace: React.FC = () => {
           className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition-all duration-200 hover:scale-105 active:scale-95 h-12 w-14 text-center cursor-pointer"
         >
           <FolderClosed className="h-5 w-5 text-blue-400" />
-          <span className="text-[9px] font-bold uppercase tracking-wider">Tray & Colors</span>
+          <span className="text-[9px] font-bold uppercase tracking-wider">Tray</span>
         </button>
       </div>
 

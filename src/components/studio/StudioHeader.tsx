@@ -4,7 +4,7 @@ import { useStudio } from '@/context/StudioContext';
 import { Button } from '@/components/ui/button';
 
 export function StudioHeader() {
-  const { images, undo, redo, history, historyIndex, batchOpen, setBatchOpen } = useStudio();
+  const { images, undo, redo, history, historyIndex, batchOpen, setBatchOpen, activeView, setActiveView } = useStudio();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -46,22 +46,42 @@ export function StudioHeader() {
 
   return (
     <header className="h-14 flex items-center justify-between px-4 border-b border-border/60 bg-[#0f1116] shadow-sm z-50">
-      <a 
-        href="https://www.shafinbd.com/" 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="flex items-center group focus:outline-none focus:ring-1 focus:ring-indigo-500 rounded-lg py-1 px-2 -ml-2 transition-all duration-200 hover:bg-white/5 shrink-0"
-      >
-        <img
-          src="https://lh3.googleusercontent.com/d/1NT-TUy9iukCF8OvcCbiPwJSYI708jBjy"
-          alt="ShafinBD Logo"
-          referrerPolicy="no-referrer"
-          className="h-8 w-auto block object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-          onError={(e) => {
-            e.currentTarget.src = "https://docs.google.com/uc?export=view&id=1NT-TUy9iukCF8OvcCbiPwJSYI708jBjy";
-          }}
-        />
-      </a>
+      <div className="flex items-center gap-3">
+        <a 
+          href="https://www.shafinbd.com/" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex items-center group focus:outline-none focus:ring-1 focus:ring-indigo-500 rounded-lg py-1 px-2 -ml-2 transition-all duration-200 hover:bg-white/5 shrink-0"
+        >
+          <img
+            src="https://lh3.googleusercontent.com/d/1NT-TUy9iukCF8OvcCbiPwJSYI708jBjy"
+            alt="ShafinBD Logo"
+            referrerPolicy="no-referrer"
+            className="h-8 w-auto block object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+            onError={(e) => {
+              e.currentTarget.src = "https://docs.google.com/uc?export=view&id=1NT-TUy9iukCF8OvcCbiPwJSYI708jBjy";
+            }}
+          />
+        </a>
+
+        {/* AI Editor Button */}
+        <button
+          type="button"
+          onClick={() => setActiveView(activeView === 'studio' ? 'ai-editor' : 'studio')}
+          className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all duration-150 cursor-pointer shadow-sm ${
+            activeView === 'ai-editor'
+              ? 'bg-amber-500 text-white hover:bg-amber-600 ring-2 ring-amber-400/40'
+              : 'bg-gradient-to-r from-amber-500/20 via-amber-500/30 to-amber-600/20 text-amber-300 hover:text-white hover:from-amber-500 hover:to-amber-600 border border-amber-500/40'
+          }`}
+          title={activeView === 'ai-editor' ? 'ক্লাসিক স্টুডিওতে ফিরুন' : 'AI Editor ওপেন করুন'}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+          <span>{activeView === 'ai-editor' ? 'AI Editor সক্রিয়' : 'AI Editor'}</span>
+          <span className="text-[9px] bg-amber-400/30 text-amber-200 px-1 py-0.2 rounded font-sans uppercase">
+            New
+          </span>
+        </button>
+      </div>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Button
