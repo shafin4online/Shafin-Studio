@@ -25,6 +25,7 @@ ShafinBD Studio is a high-end, professional-grade web application designed for p
 3. **Configure Environment Variables**:
    - Go to `Settings` > `Environment Variables`.
    - Add `VITE_APP_TITLE` with the value `ShafinBD Studio`.
+   - Add `GEMINI_ACCOUNTS_JSON` with your multi-account JSON array for centralized automated API rotation and failover.
 4. **Build Settings**:
    - Framework Preset: `Vite` (Vercel usually auto-detects this).
    - Build Command: `npm run build`
