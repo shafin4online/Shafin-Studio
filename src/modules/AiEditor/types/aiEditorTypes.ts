@@ -1,5 +1,14 @@
 export type PhotoSizeId = 'passport' | 'dual' | 'epass' | 'visa' | 'birth';
 
+export interface CountryVisaPreset {
+  id: string;
+  dimensions: string;
+  countries: string;
+  widthMm: number;
+  heightMm: number;
+  category: PhotoSizeId;
+}
+
 export interface PhotoSizePreset {
   id: PhotoSizeId;
   label: string;

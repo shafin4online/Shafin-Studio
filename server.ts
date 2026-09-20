@@ -151,6 +151,103 @@ async function startServer() {
     }
   });
 
+  // Admin API: Bulk add multiple keys
+  app.post("/api/admin/api-pool/bulk-keys", (req, res) => {
+    try {
+      const { rawText, keyList } = req.body;
+      let addedCount = 0;
+      const existingKeys = new Set(vault.getAllCredentials().map(c => c.apiKey));
+
+      const addSingleKey = (key: string, name?: string) => {
+        const trimmed = key.trim();
+        if (!trimmed || existingKeys.has(trimmed)) return;
+        existingKeys.add(trimmed);
+        const count = vault.getAllCredentials().length + 1;
+        vault.addCredential({
+          provider: "google",
+          name: name?.trim() || `Account ${String(count).padStart(2, '0')}`,
+          apiKey: trimmed,
+          priority: 2
+        });
+        addedCount++;
+      };
+
+      if (Array.isArray(keyList)) {
+        for (const item of keyList) {
+          if (typeof item === 'string') {
+            addSingleKey(item);
+          } else if (item && item.apiKey) {
+            addSingleKey(item.apiKey, item.name);
+          }
+        }
+      } else if (typeof rawText === 'string') {
+        const lines = rawText.split(/[\r\n]+/);
+        for (const line of lines) {
+          const l = line.trim();
+          if (!l) continue;
+          if (l.includes(':')) {
+            const [name, key] = l.split(':');
+            addSingleKey(key, name);
+          } else if (l.includes('\t')) {
+            const [name, key] = l.split('\t');
+            addSingleKey(key, name);
+          } else {
+            addSingleKey(l);
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `${addedCount} টি API কী সফলভাবে পুলে যোগ করা হয়েছে`,
+        addedCount,
+        summary: apiSelector.getPoolSummary(),
+        keys: vault.getMaskedCredentials()
+      });
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // Admin API: Delete a key from pool
+  app.delete("/api/admin/api-pool/key/:id", (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = vault.deleteCredential(id);
+      res.json({
+        success: deleted,
+        message: deleted ? `${id} ডিলিট করা হয়েছে` : 'কী পাওয়া যায়নি',
+        summary: apiSelector.getPoolSummary(),
+        keys: vault.getMaskedCredentials()
+      });
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // Admin API: Delete all failed keys
+  app.post("/api/admin/api-pool/clear-failed", (req, res) => {
+    try {
+      const all = vault.getAllCredentials();
+      let cleared = 0;
+      for (const cred of all) {
+        if (cred.status === 'FAILED') {
+          vault.deleteCredential(cred.id);
+          cleared++;
+        }
+      }
+      res.json({
+        success: true,
+        message: `${cleared} টি ব্যর্থ (Failed) কী রিমুভ করা হয়েছে`,
+        cleared,
+        summary: apiSelector.getPoolSummary(),
+        keys: vault.getMaskedCredentials()
+      });
+    } catch (err: unknown) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // AI Editor endpoint powered by Centralized API Pool & Task Router
   app.post("/api/ai-editor", async (req, res) => {
     try {

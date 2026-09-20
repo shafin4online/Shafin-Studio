@@ -9,7 +9,9 @@ import {
   AlertCircle, 
   Clock, 
   ShieldAlert, 
-  KeyRound
+  KeyRound,
+  Trash2,
+  FileText
 } from 'lucide-react';
 
 interface KeyStats {
@@ -60,6 +62,8 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
   });
   const [keys, setKeys] = useState<MaskedCredential[]>([]);
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
+  const [showBulkForm, setShowBulkForm] = useState<boolean>(false);
+  const [bulkText, setBulkText] = useState<string>('');
   const [newKey, setNewKey] = useState<string>('');
   const [newName, setNewName] = useState<string>('');
   const [actionMsg, setActionMsg] = useState<string | null>(null);
@@ -100,6 +104,60 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
       }
     } catch (err) {
       console.error('Error resetting cooldowns:', err);
+    }
+  };
+
+  const handleClearFailed = async () => {
+    try {
+      const res = await fetch('/api/admin/api-pool/clear-failed', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.summary) setSummary(data.summary);
+        if (data.keys) setKeys(data.keys);
+        setActionMsg(data.message || 'ব্যর্থ কী রিমুভ করা হয়েছে!');
+        setTimeout(() => setActionMsg(null), 3000);
+      }
+    } catch (err) {
+      console.error('Error clearing failed keys:', err);
+    }
+  };
+
+  const handleDeleteKey = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/api-pool/key/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.summary) setSummary(data.summary);
+        if (data.keys) setKeys(data.keys);
+        setActionMsg(`${id} সফলভাবে রিমুভ করা হয়েছে`);
+        setTimeout(() => setActionMsg(null), 3000);
+      }
+    } catch (err) {
+      console.error('Error deleting key:', err);
+    }
+  };
+
+  const handleBulkAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkText.trim()) return;
+
+    try {
+      const res = await fetch('/api/admin/api-pool/bulk-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawText: bulkText.trim() })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.summary) setSummary(data.summary);
+        if (data.keys) setKeys(data.keys);
+        setBulkText('');
+        setShowBulkForm(false);
+        setActionMsg(data.message || 'সবগুলো কী সফলভাবে পুলে যুক্ত করা হয়েছে!');
+        setTimeout(() => setActionMsg(null), 3000);
+      }
+    } catch (err) {
+      console.error('Error bulk adding keys:', err);
     }
   };
 
@@ -239,14 +297,29 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
 
         {/* Toolbar */}
         <div className="px-6 py-2 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowAddForm(prev => !prev)}
+              onClick={() => {
+                setShowAddForm(prev => !prev);
+                setShowBulkForm(false);
+              }}
               className="h-8 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>নতুন কী যোগ করুন</span>
+              <span>নতুন কী</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowBulkForm(prev => !prev);
+                setShowAddForm(false);
+              }}
+              className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>একসাথে একাধিক কী (Bulk Add)</span>
             </button>
 
             <button
@@ -257,6 +330,17 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
               <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
               <span>কুলডাউন রিসেট</span>
             </button>
+
+            {summary.failed > 0 && (
+              <button
+                type="button"
+                onClick={handleClearFailed}
+                className="h-8 px-3 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-rose-700/60"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                <span>ব্যর্থ কী মুছুন ({summary.failed})</span>
+              </button>
+            )}
           </div>
 
           <button
@@ -275,7 +359,7 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
           <form onSubmit={handleAddKey} className="mx-6 my-2 p-3.5 rounded-xl bg-[#182033] border border-amber-500/30 space-y-3">
             <h4 className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
               <KeyRound className="w-3.5 h-3.5" />
-              নতুন Google Gemini API কী সংযুক্ত করুন
+              একটি Google Gemini API কী সংযুক্ত করুন
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input
@@ -312,6 +396,44 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
           </form>
         )}
 
+        {/* Bulk Add Keys Drawer */}
+        {showBulkForm && (
+          <form onSubmit={handleBulkAdd} className="mx-6 my-2 p-3.5 rounded-xl bg-[#182033] border border-blue-500/40 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5" />
+                একসাথে একাধিক API কী পেস্ট করুন
+              </h4>
+              <span className="text-[11px] text-slate-400">
+                প্রতি লাইনে একটি কী অথবা &quot;নাম: কী&quot; ফরম্যাটে
+              </span>
+            </div>
+            <textarea
+              value={bulkText}
+              onChange={(e) => setBulkText(e.target.value)}
+              placeholder={`djrashidulboss: AIzaSyC_QF8tL0h5BtTdD_Uf5dTCNuGsgQqOlIc\nshafin dokan: AIzaSyBnvUiVfE7sZsKyptfb_uUggh8Rsd4fOCE\nAIzaSyD9yCDAinP98OjGHrUjojXBXr0NE-MoUpw`}
+              rows={4}
+              required
+              className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-blue-500 font-mono leading-relaxed"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowBulkForm(false)}
+                className="h-7 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 cursor-pointer"
+              >
+                বাতিল
+              </button>
+              <button
+                type="submit"
+                className="h-7 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs text-white font-bold cursor-pointer"
+              >
+                সবগুলো কী পুলে যোগ করুন
+              </button>
+            </div>
+          </form>
+        )}
+
         {/* Keys Table / List */}
         <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-2 space-y-2">
           {keys.length === 0 ? (
@@ -331,75 +453,95 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
               return (
                 <div 
                   key={k.id}
-                  className="p-3 rounded-xl bg-[#141b2c] border border-slate-800/80 hover:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors"
+                  className="p-3 rounded-xl bg-[#141b2c] border border-slate-800/80 hover:border-slate-700 flex flex-col gap-2 transition-colors"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="font-mono text-xs font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md shrink-0">
-                      {k.id}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-bold text-white truncate">{k.name}</h4>
-                        <span className="text-[11px] text-slate-400 font-mono">{k.maskedKey}</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="font-mono text-xs font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md shrink-0">
+                        {k.id}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold text-white truncate">{k.name}</h4>
+                          <span className="text-[11px] text-slate-400 font-mono">{k.maskedKey}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                          <span>রিকোয়েস্ট: <strong className="text-slate-200">{k.stats.requests}</strong></span>
+                          <span>•</span>
+                          <span>সফল: <strong className="text-emerald-400">{k.stats.success}</strong></span>
+                          <span>•</span>
+                          <span>ব্যর্থ: <strong className="text-rose-400">{k.stats.failure}</strong></span>
+                          {k.stats.rateLimits > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="text-amber-400 font-semibold">৪২৯ লিমিট: {k.stats.rateLimits}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
-                        <span>রিকোয়েস্ট: <strong className="text-slate-200">{k.stats.requests}</strong></span>
-                        <span>•</span>
-                        <span>সফল: <strong className="text-emerald-400">{k.stats.success}</strong></span>
-                        <span>•</span>
-                        <span>ব্যর্থ: <strong className="text-rose-400">{k.stats.failure}</strong></span>
-                        {k.stats.rateLimits > 0 && (
-                          <>
-                            <span>•</span>
-                            <span className="text-amber-400 font-semibold">৪২৯ লিমিট: {k.stats.rateLimits}</span>
-                          </>
-                        )}
-                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                      {/* Status Badge */}
+                      {isAct && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          ACTIVE
+                        </span>
+                      )}
+
+                      {isCool && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          <Clock className="w-3 h-3 text-amber-400" />
+                          COOLDOWN ({k.cooldownRemainingSeconds}s)
+                        </span>
+                      )}
+
+                      {isFail && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                          <AlertCircle className="w-3 h-3 text-rose-400" />
+                          FAILED
+                        </span>
+                      )}
+
+                      {k.status === 'DISABLED' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400">
+                          DISABLED
+                        </span>
+                      )}
+
+                      {/* Enable/Disable Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleKey(k.id, k.status)}
+                        className={`h-7 px-2.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                          k.status === 'DISABLED'
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                            : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                        }`}
+                      >
+                        {k.status === 'DISABLED' ? 'চালু করুন' : 'পজ'}
+                      </button>
+
+                      {/* Delete Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteKey(k.id)}
+                        title="কী মুছে ফেলুন"
+                        className="w-7 h-7 rounded-lg bg-slate-800/80 hover:bg-rose-950 text-slate-400 hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer border border-slate-700/50 hover:border-rose-800/60"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
-                    {/* Status Badge */}
-                    {isAct && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        ACTIVE
-                      </span>
-                    )}
-
-                    {isCool && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                        <Clock className="w-3 h-3 text-amber-400" />
-                        COOLDOWN ({k.cooldownRemainingSeconds}s)
-                      </span>
-                    )}
-
-                    {isFail && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
-                        <AlertCircle className="w-3 h-3 text-rose-400" />
-                        FAILED
-                      </span>
-                    )}
-
-                    {k.status === 'DISABLED' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400">
-                        DISABLED
-                      </span>
-                    )}
-
-                    {/* Enable/Disable Toggle */}
-                    <button
-                      type="button"
-                      onClick={() => handleToggleKey(k.id, k.status)}
-                      className={`h-7 px-2.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                        k.status === 'DISABLED'
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                      }`}
-                    >
-                      {k.status === 'DISABLED' ? 'চালু করুন' : 'পজ'}
-                    </button>
-                  </div>
+                  {/* Last Error detail note if failed or cooldown */}
+                  {k.stats.lastError && (
+                    <div className="mt-1 px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-[11px] text-amber-300/90 flex items-center gap-1.5">
+                      <AlertCircle className="w-3 h-3 text-amber-400 shrink-0" />
+                      <span className="truncate">{k.stats.lastError}</span>
+                    </div>
+                  )}
                 </div>
               );
             })

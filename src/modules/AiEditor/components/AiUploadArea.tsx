@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { PhotoSizeId } from '../types/aiEditorTypes';
 import { PHOTO_SIZES } from '../data/presetsData';
+import { MobileAiResultView } from './mobile/MobileAiResultView';
 
 interface AiUploadAreaProps {
   selectedSize: PhotoSizeId;
@@ -49,6 +50,8 @@ interface AiUploadAreaProps {
   onCopyImage?: () => void;
   onFeedbackGood?: () => void;
   onFeedbackBad?: () => void;
+  onDownloadPhoto?: () => void;
+  onOpenPrintSheet?: () => void;
 }
 
 export const AiUploadArea: React.FC<AiUploadAreaProps> = ({
@@ -73,7 +76,9 @@ export const AiUploadArea: React.FC<AiUploadAreaProps> = ({
   onClearGenerated,
   onCopyImage,
   onFeedbackGood,
-  onFeedbackBad
+  onFeedbackBad,
+  onDownloadPhoto,
+  onOpenPrintSheet
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const leftFileInputRef = useRef<HTMLInputElement>(null);
@@ -404,8 +409,8 @@ export const AiUploadArea: React.FC<AiUploadAreaProps> = ({
       ) : (
         /* Image Preview Area */
         <div className="w-full max-w-2xl h-full flex flex-col items-center justify-center">
-          {/* Top Info Bar */}
-          <div className="w-full flex items-center justify-between pb-3 px-2">
+          {/* Top Info Bar (Hidden on mobile when generatedImage is present to match Screenshot 1) */}
+          <div className={`w-full items-center justify-between pb-3 px-2 ${generatedImage ? 'hidden lg:flex' : 'flex'}`}>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-semibold">
                 {sizePreset.label} ({sizePreset.subLabel})
@@ -451,110 +456,147 @@ export const AiUploadArea: React.FC<AiUploadAreaProps> = ({
 
           {/* Canvas Main Image Box */}
           {generatedImage ? (
-            <div className="relative max-h-[72vh] max-w-full flex flex-col items-center select-none">
-              {/* White card border wrapper matching Screenshot 1 */}
-              <div className="relative bg-white p-2 md:p-3 rounded-2xl shadow-2xl overflow-hidden border border-slate-700/60 max-h-[70vh] flex items-center justify-center">
-                {/* Top-Right Corner Controls: Eye (toggle compare) & Close (✕) */}
-                <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsComparingOriginal(prev => !prev)}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-white shadow-lg transition-all active:scale-90 cursor-pointer ${
-                      isComparingOriginal ? 'bg-amber-600 ring-2 ring-white/60' : 'bg-amber-500 hover:bg-amber-600'
-                    }`}
-                    title={isComparingOriginal ? 'এআই সম্পাদিত ছবি দেখুন' : 'আসল ছবি দেখুন'}
-                  >
-                    <Eye className="w-4 h-4 stroke-[2.2]" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onClearGenerated) onClearGenerated();
-                      else onRemoveImage();
-                    }}
-                    className="w-8 h-8 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center shadow-lg transition-all active:scale-90 cursor-pointer text-xs font-bold"
-                    title="ফলাফল বন্ধ করুন"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Main Photo with applied dynamic adjustments */}
-                <img
-                  src={isComparingOriginal ? (uploadedImage || uploadedImageLeft || uploadedImageRight || '') : generatedImage}
-                  alt="Studio Result"
-                  style={{
-                    filter: `brightness(${1 + (adjustments.brightness / 100)}) contrast(${1 + (adjustments.contrast / 100)}) saturate(${1 + (adjustments.saturation / 100)})`,
+            <>
+              {/* MOBILE POST-EDIT VIEW: Matches Screenshot 1 & 2 */}
+              <div className="w-full flex-1 lg:hidden flex flex-col items-center justify-start overflow-hidden">
+                <MobileAiResultView
+                  generatedImage={generatedImage}
+                  originalImage={uploadedImage || uploadedImageLeft || uploadedImageRight || null}
+                  onClear={() => {
+                    if (onClearGenerated) onClearGenerated();
+                    else onRemoveImage();
                   }}
-                  className="max-h-[62vh] max-w-full object-contain block rounded-xl shadow-md"
+                  onCrop={() => {
+                    if (onSendToStudio) {
+                      onSendToStudio(generatedImage);
+                    }
+                  }}
+                  onDownload={() => {
+                    if (onDownloadPhoto) {
+                      onDownloadPhoto();
+                    } else {
+                      const link = document.createElement('a');
+                      link.download = `photo-${selectedSize}-${Date.now()}.png`;
+                      link.href = generatedImage;
+                      link.click();
+                    }
+                  }}
+                  onPrint={() => {
+                    if (onOpenPrintSheet) {
+                      onOpenPrintSheet();
+                    }
+                  }}
+                  onFeedbackGood={onFeedbackGood}
+                  onFeedbackBad={onFeedbackBad}
                 />
+              </div>
 
-                {/* Original Photo Indicator badge if active */}
-                {isComparingOriginal && (
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-black/80 text-white text-[11px] font-semibold tracking-wide">
-                    আসল ছবি
+              {/* DESKTOP VIEW: Large card with canvas and floating control bar */}
+              <div className="hidden lg:flex relative max-h-[72vh] max-w-full flex-col items-center select-none">
+                {/* White card border wrapper */}
+                <div className="relative bg-white p-2 md:p-3 rounded-2xl shadow-2xl overflow-hidden border border-slate-700/60 max-h-[70vh] flex items-center justify-center">
+                  {/* Top-Right Corner Controls: Eye (toggle compare) & Close (✕) */}
+                  <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsComparingOriginal(prev => !prev)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-white shadow-lg transition-all active:scale-90 cursor-pointer ${
+                        isComparingOriginal ? 'bg-amber-600 ring-2 ring-white/60' : 'bg-amber-500 hover:bg-amber-600'
+                      }`}
+                      title={isComparingOriginal ? 'এআই সম্পাদিত ছবি দেখুন' : 'আসল ছবি দেখুন'}
+                    >
+                      <Eye className="w-4 h-4 stroke-[2.2]" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onClearGenerated) onClearGenerated();
+                        else onRemoveImage();
+                      }}
+                      className="w-8 h-8 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center shadow-lg transition-all active:scale-90 cursor-pointer text-xs font-bold"
+                      title="ফলাফল বন্ধ করুন"
+                    >
+                      ✕
+                    </button>
                   </div>
-                )}
 
-                {/* Bottom Center Floating Action Bar (ভালো হয়েছে / ভালো হয়নি / ছবি কপি করুন) */}
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/40 backdrop-blur-md p-1.5 rounded-full border border-white/15 shadow-2xl">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFeedbackStatus('good');
-                      onFeedbackGood?.();
+                  {/* Main Photo with applied dynamic adjustments */}
+                  <img
+                    src={isComparingOriginal ? (uploadedImage || uploadedImageLeft || uploadedImageRight || '') : generatedImage}
+                    alt="Studio Result"
+                    style={{
+                      filter: `brightness(${1 + (adjustments.brightness / 100)}) contrast(${1 + (adjustments.contrast / 100)}) saturate(${1 + (adjustments.saturation / 100)})`,
                     }}
-                    className={`h-8 px-3.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
-                      feedbackStatus === 'good'
-                        ? 'bg-emerald-500 text-white ring-2 ring-white/60'
-                        : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                    }`}
-                  >
-                    <ThumbsUp className="w-3.5 h-3.5" />
-                    <span>ভালো হয়েছে</span>
-                  </button>
+                    className="max-h-[62vh] max-w-full object-contain block rounded-xl shadow-md"
+                  />
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFeedbackStatus('bad');
-                      onFeedbackBad?.();
-                    }}
-                    className={`h-8 px-3.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
-                      feedbackStatus === 'bad'
-                        ? 'bg-rose-500 text-white ring-2 ring-white/60'
-                        : 'bg-rose-600 hover:bg-rose-500 text-white'
-                    }`}
-                  >
-                    <ThumbsDown className="w-3.5 h-3.5" />
-                    <span>ভালো হয়নি</span>
-                  </button>
+                  {/* Original Photo Indicator badge if active */}
+                  {isComparingOriginal && (
+                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-black/80 text-white text-[11px] font-semibold tracking-wide">
+                      আসল ছবি
+                    </div>
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onCopyImage?.();
-                      setFeedbackStatus('copied');
-                      setTimeout(() => setFeedbackStatus(null), 2000);
-                    }}
-                    className="h-8 px-3.5 rounded-full text-xs font-bold bg-[#1c2438] hover:bg-[#25304a] text-slate-200 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer border border-slate-700/60 shadow-sm"
-                  >
-                    {feedbackStatus === 'copied' ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>কপি হয়েছে</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5 text-amber-400" />
-                        <span>ছবি কপি করুন</span>
-                      </>
-                    )}
-                  </button>
+                  {/* Bottom Center Floating Action Bar (ভালো হয়েছে / ভালো হয়নি / ছবি কপি করুন) */}
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-black/40 backdrop-blur-md p-1.5 rounded-full border border-white/15 shadow-2xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFeedbackStatus('good');
+                        onFeedbackGood?.();
+                      }}
+                      className={`h-8 px-3.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
+                        feedbackStatus === 'good'
+                          ? 'bg-emerald-500 text-white ring-2 ring-white/60'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                      }`}
+                    >
+                      <ThumbsUp className="w-3.5 h-3.5" />
+                      <span>ভালো হয়েছে</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFeedbackStatus('bad');
+                        onFeedbackBad?.();
+                      }}
+                      className={`h-8 px-3.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
+                        feedbackStatus === 'bad'
+                          ? 'bg-rose-500 text-white ring-2 ring-white/60'
+                          : 'bg-rose-600 hover:bg-rose-500 text-white'
+                      }`}
+                    >
+                      <ThumbsDown className="w-3.5 h-3.5" />
+                      <span>ভালো হয়নি</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onCopyImage?.();
+                        setFeedbackStatus('copied');
+                        setTimeout(() => setFeedbackStatus(null), 2000);
+                      }}
+                      className="h-8 px-3.5 rounded-full text-xs font-bold bg-[#1c2438] hover:bg-[#25304a] text-slate-200 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer border border-slate-700/60 shadow-sm"
+                    >
+                      {feedbackStatus === 'copied' ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>কপি হয়েছে</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-amber-400" />
+                          <span>ছবি কপি করুন</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </>
           ) : (
             <div className="relative max-h-[68vh] max-w-full rounded-2xl overflow-hidden border border-slate-700/60 bg-[#090d16] shadow-2xl flex items-center justify-center p-3">
               {/* Original Uploaded Image */}

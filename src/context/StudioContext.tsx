@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import type { EditorState, StudioImage, CropPreset, PrintSlot } from './studioTypes';
+import type { EditorState, StudioImage, CropPreset, PrintSlot, ImageInput } from './studioTypes';
 import { processBackgroundRemoval } from './bgProService';
 import { processImageEnhancement } from './enhancerService';
 import { optimizeUploadImage } from '@/lib/imageOptimizer';
@@ -66,7 +66,8 @@ interface StudioContextType {
   setActiveImage: (id: string | null) => void;
   updateEditorState: (updates: Partial<EditorState>) => void;
   updateEditedImage: (id: string, dataUrl: string) => void;
-  addImages: (files: File[]) => void;
+  addImages: (files: (ImageInput | string)[]) => void;
+  addStudioImage: (image: StudioImage) => void;
   removeImage: (id: string) => void;
   undo: () => void;
   redo: () => void;
@@ -251,20 +252,80 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setHistoryIndex(newHistory.length - 1);
   }, [images, editorState, history, historyIndex]);
 
-  const addImages = useCallback(async (files: File[]) => {
+  const addStudioImage = useCallback((image: StudioImage) => {
+    setImages(prev => {
+      const updated = [...prev, image];
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push({
+        editorState: { ...editorState },
+        images: updated.map(img => ({ ...img }))
+      });
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+      return updated;
+    });
+    setActiveImageId(image.id);
+  }, [editorState, history, historyIndex]);
+
+  const addImages = useCallback(async (files: (ImageInput | string)[]) => {
     const newImages: StudioImage[] = await Promise.all(
       files.map(async (file) => {
+        // 1. If item is already a StudioImage or has image URL properties
+        if (file && typeof file === 'object' && !(file instanceof Blob)) {
+          const item = file as Record<string, unknown>;
+          const id = (typeof item.id === 'string' && item.id) ? item.id : `img-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          const src = typeof item.original === 'string' ? item.original 
+            : typeof item.originalUrl === 'string' ? item.originalUrl
+            : typeof item.edited === 'string' ? item.edited
+            : typeof item.editedUrl === 'string' ? item.editedUrl
+            : '';
+          const name = typeof item.name === 'string' ? item.name : `Studio_Photo_${Date.now()}.png`;
+          const edited = typeof item.edited === 'string' ? item.edited : typeof item.editedUrl === 'string' ? item.editedUrl : src;
+          const thumb = typeof item.thumbnail === 'string' ? item.thumbnail : src;
+          return {
+            id,
+            name,
+            original: src,
+            edited,
+            thumbnail: thumb,
+          };
+        }
+
+        // 2. If item is a direct string (dataURL or web URL)
+        if (typeof file === 'string') {
+          const id = `img-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          return {
+            id,
+            name: `Photo_${Date.now()}.png`,
+            original: file,
+            edited: file,
+            thumbnail: file,
+          };
+        }
+
+        // 3. If item is a standard Blob / File
         const id = Math.random().toString(36).substring(7);
-        // Optimize uploaded image dynamically to reach high fidelity 300kb - 400kb size standard
-        const optimizedFile = await optimizeUploadImage(file);
-        const url = URL.createObjectURL(optimizedFile);
-        return {
-          id,
-          name: optimizedFile.name,
-          original: url,
-          edited: url,
-          thumbnail: url,
-        };
+        try {
+          const optimizedFile = await optimizeUploadImage(file);
+          const url = (optimizedFile instanceof Blob) ? URL.createObjectURL(optimizedFile) : '';
+          return {
+            id,
+            name: (optimizedFile as File).name || `Photo_${Date.now()}.png`,
+            original: url,
+            edited: url,
+            thumbnail: url,
+          };
+        } catch (e) {
+          console.warn('[StudioContext] Error optimizing file, falling back to direct URL:', e);
+          const url = (file instanceof Blob) ? URL.createObjectURL(file) : '';
+          return {
+            id,
+            name: (file as File)?.name || `Photo_${Date.now()}.png`,
+            original: url,
+            edited: url,
+            thumbnail: url,
+          };
+        }
       })
     );
     setImages(prev => {
@@ -467,7 +528,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       mobileLeftOpen, setMobileLeftOpen, mobileRightOpen, setMobileRightOpen,
       activeView, setActiveView,
       printSlots, setPrintSlots, printPage, setPrintPage, printGap, setPrintGap,
-      setActiveImage, updateEditorState, updateEditedImage, addImages, removeImage,
+      setActiveImage, updateEditorState, updateEditedImage, addImages, addStudioImage, removeImage,
       undo, redo, pushHistory, setIsLayerMode, setActiveCropPreset, batchUpdateEditedImages, batchOpen, setBatchOpen,
       setBgOutputMode, setEdgeSmoothing, runBgPro, cancelBgPro, setShowBgComparison,
       setEnhancerScale, setEnhancerDpi, setEnhancerDpiValue, setEnhancerResize, setEnhancerWidth, setEnhancerHeight,

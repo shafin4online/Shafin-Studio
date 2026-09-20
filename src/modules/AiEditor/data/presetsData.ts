@@ -1,4 +1,4 @@
-import { PhotoSizePreset, BgColorOption, DressOption, EnhancementOption, DressColorItem } from '../types/aiEditorTypes';
+import { PhotoSizePreset, BgColorOption, DressOption, EnhancementOption, DressColorItem, CountryVisaPreset } from '../types/aiEditorTypes';
 
 export const PHOTO_SIZES: PhotoSizePreset[] = [
   {
@@ -45,6 +45,105 @@ export const PHOTO_SIZES: PhotoSizePreset[] = [
     heightMm: 45,
     aspectRatio: 35 / 45,
     description: 'জন্ম নিবন্ধন এবং স্কুল ও ভর্তি পরীক্ষার ছবি'
+  }
+];
+
+export const COUNTRY_VISA_SIZES: CountryVisaPreset[] = [
+  {
+    id: 'us-india-2x2',
+    dimensions: '২×২ ইঞ্চি',
+    countries: 'যুক্তরাষ্ট্র (US), ভারত',
+    widthMm: 50.8,
+    heightMm: 50.8,
+    category: 'visa'
+  },
+  {
+    id: 'uk-schengen-35x45',
+    dimensions: '৩৫×৪৫ মিমি',
+    countries: 'যুক্তরাজ্য (UK), শেনজেন...',
+    widthMm: 35,
+    heightMm: 45,
+    category: 'visa'
+  },
+  {
+    id: 'saudi-uae-40x60',
+    dimensions: '৪০×৬০ মিমি',
+    countries: 'সৌদি আরব, সংযুক্ত আরব আমিরাত...',
+    widthMm: 40,
+    heightMm: 60,
+    category: 'visa'
+  },
+  {
+    id: 'hk-kazakh-40x50',
+    dimensions: '৪০×৫০ মিমি',
+    countries: 'হংকং, কাজাখস্তান...',
+    widthMm: 40,
+    heightMm: 50,
+    category: 'visa'
+  },
+  {
+    id: 'arg-bolivia-40x40',
+    dimensions: '৪০×৪০ মিমি',
+    countries: 'আর্জেন্টিনা, বলিভিয়া...',
+    widthMm: 40,
+    heightMm: 40,
+    category: 'visa'
+  },
+  {
+    id: 'bahamas-50x50',
+    dimensions: '৫০×৫০ মিমি',
+    countries: 'বাহামাস, কোস্টারিকা...',
+    widthMm: 50,
+    heightMm: 50,
+    category: 'visa'
+  },
+  {
+    id: 'canada-pr-50x70',
+    dimensions: '৫০×৭০ মিমি',
+    countries: 'কানাডা (PR/পাসপোর্ট)...',
+    widthMm: 50,
+    heightMm: 70,
+    category: 'visa'
+  },
+  {
+    id: 'china-33x48',
+    dimensions: '৩৩×৪৮ মিমি',
+    countries: 'চীন',
+    widthMm: 33,
+    heightMm: 48,
+    category: 'visa'
+  },
+  {
+    id: 'malaysia-35x50',
+    dimensions: '৩৫×৫০ মিমি',
+    countries: 'মালয়েশিয়া',
+    widthMm: 35,
+    heightMm: 50,
+    category: 'visa'
+  },
+  {
+    id: 'albania-36x47',
+    dimensions: '৩৬×৪৭ মিমি',
+    countries: 'আলবেনিয়া,...',
+    widthMm: 36,
+    heightMm: 47,
+    category: 'visa'
+  },
+  {
+    id: 'qatar-38x48',
+    dimensions: '৩৮×৪৮ মিমি',
+    countries: 'কাতার',
+    widthMm: 38,
+    heightMm: 48,
+    category: 'visa'
+  },
+  {
+    id: 'turkey-50x60',
+    dimensions: '৫০×৬০ মিমি',
+    countries: 'তুরস্ক',
+    widthMm: 50,
+    heightMm: 60,
+    category: 'visa'
   }
 ];
 

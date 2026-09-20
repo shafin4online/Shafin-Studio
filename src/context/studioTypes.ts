@@ -22,6 +22,16 @@ export interface StudioImage {
   thumbnail: string;
 }
 
+export type ImageInput = File | StudioImage | {
+  id?: string;
+  name?: string;
+  original?: string;
+  edited?: string;
+  thumbnail?: string;
+  originalUrl?: string;
+  editedUrl?: string;
+};
+
 export interface CropPreset {
   id: string;
   label: string;

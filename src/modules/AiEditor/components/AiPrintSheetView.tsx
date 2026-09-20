@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Trash2, 
@@ -17,7 +17,7 @@ import {
 
 export interface PrintPhotoItem {
   id: string;
-  type: 'passport' | 'stamp' | '2r' | '3r' | '4r' | '5r' | '6r' | '8r' | 'custom';
+  type: 'passport' | 'stamp' | '2r' | '3r' | '4r' | '5r' | '6r' | '8r' | 'a4' | 'custom';
   name: string;
   widthMm: number;
   heightMm: number;
@@ -44,13 +44,23 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
   
   // Zoom
   const [zoomPercent, setZoomPercent] = useState<number>(100);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Photos placed on sheet: by default add 4 passport photos like in Screenshot 3!
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Photos placed on sheet: initially 4 passport photos matching Screenshot 3
   const [items, setItems] = useState<PrintPhotoItem[]>([
-    { id: '1', type: 'passport', name: 'পাসপোর্ট', widthMm: 40, heightMm: 50 },
-    { id: '2', type: 'passport', name: 'পাসপোর্ট', widthMm: 40, heightMm: 50 },
-    { id: '3', type: 'passport', name: 'পাসপোর্ট', widthMm: 40, heightMm: 50 },
-    { id: '4', type: 'passport', name: 'পাসপোর্ট', widthMm: 40, heightMm: 50 },
+    { id: '1', type: 'passport', name: 'পাসপোর্ট', widthMm: 45, heightMm: 55 },
+    { id: '2', type: 'passport', name: 'পাসপোর্ট', widthMm: 45, heightMm: 55 },
+    { id: '3', type: 'passport', name: 'পাসপোর্ট', widthMm: 45, heightMm: 55 },
+    { id: '4', type: 'passport', name: 'পাসপোর্ট', widthMm: 45, heightMm: 55 },
   ]);
 
   const printSheetRef = useRef<HTMLDivElement>(null);
@@ -69,7 +79,7 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
   // Quick Add Helpers
   const addPreset = (type: 'passport' | 'stamp', count: number) => {
     const presetConfig = type === 'passport' 
-      ? { name: 'পাসপোর্ট', widthMm: 40, heightMm: 50 }
+      ? { name: 'পাসপোর্ট', widthMm: 45, heightMm: 55 }
       : { name: 'স্ট্যাম্প', widthMm: 20, heightMm: 25 };
 
     const newPhotos: PrintPhotoItem[] = [];
@@ -85,7 +95,7 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
     setItems(prev => [...prev, ...newPhotos]);
   };
 
-  const addRSize = (rType: '2r' | '3r' | '4r' | '5r' | '6r' | '8r') => {
+  const addRSize = (rType: '2r' | '3r' | '4r' | '5r' | '6r' | '8r' | 'a4') => {
     const rSizes: Record<string, { w: number; h: number; name: string }> = {
       '2r': { w: 64, h: 89, name: '২R' },
       '3r': { w: 89, h: 127, name: '৩R' },
@@ -93,6 +103,7 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
       '5r': { w: 127, h: 178, name: '৫R' },
       '6r': { w: 152, h: 203, name: '৬R' },
       '8r': { w: 203, h: 254, name: '৮R' },
+      'a4': { w: 190, h: 270, name: 'A4' },
     };
     const conf = rSizes[rType];
     if (conf) {
@@ -118,27 +129,54 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
   };
 
   const handleDownloadPdf = () => {
-    // Standard high-quality print dialog will offer Save as PDF
     window.print();
   };
 
-  // Convert mm to screen pixels based on 96 DPI scale (approx 3.78 px per mm)
-  const scaleMmToPx = 3.2 * (zoomPercent / 100);
+  // Convert mm to screen pixels: on mobile auto-scale to fit cleanly inside preview card
+  const scaleMmToPx = isMobile ? 1.4 : 3.2 * (zoomPercent / 100);
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0c101d] text-slate-100 flex flex-col h-screen w-screen overflow-hidden select-none">
+      {/* Embedded print stylesheet for pristine A4 output matching Screenshot 4 */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #print-sheet-paper, #print-sheet-paper * {
+            visibility: visible !important;
+          }
+          #print-sheet-paper {
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 210mm !important;
+            height: 297mm !important;
+            margin: 0 !important;
+            padding: 8mm !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: white !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+        }
+      `}</style>
+
       {/* Top Header bar with Back button */}
-      <header className="h-12 bg-[#0e1424] border-b border-slate-800 flex items-center justify-between px-4 shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="h-12 bg-[#0e1424] border-b border-slate-800 flex items-center justify-between px-3 md:px-4 shrink-0">
+        <div className="flex items-center gap-2 md:gap-3">
           <button
             type="button"
             onClick={onBack}
-            className="h-8 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="h-8 px-2.5 md:px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 text-amber-500" />
             <span>এডিটরে ফিরুন</span>
           </button>
-          <span className="text-xs font-bold text-slate-300">
+          <span className="text-xs font-bold text-slate-300 truncate">
             স্টুডিও প্রিন্ট শিট ইঞ্জিন
           </span>
         </div>
@@ -150,10 +188,250 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
         </div>
       </header>
 
-      {/* Main Workspace: Left Controls + Right Live Canvas */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* LEFT CONTROL PANEL (Matches Screenshot 3) */}
-        <aside className="w-full md:w-80 lg:w-84 bg-[#111726] border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
+        
+        {/* ========================================================================= */}
+        {/* MOBILE VIEW (matches Screenshot 3: Top Paper Preview + Scrollable Table) */}
+        {/* ========================================================================= */}
+        <div className="md:hidden flex-1 flex flex-col overflow-hidden bg-[#0c101d]">
+          {/* Top Live Sheet Preview (Screenshot 3 Top) */}
+          <div className="h-[34vh] min-h-[220px] bg-[#1a2030] border-b border-slate-800 flex items-center justify-center p-3 overflow-auto">
+            <div
+              id="print-sheet-paper"
+              ref={printSheetRef}
+              style={{
+                width: `${pageWidthMm * scaleMmToPx}px`,
+                height: `${pageHeightMm * scaleMmToPx}px`,
+                padding: `${6 * scaleMmToPx}px`,
+              }}
+              className="bg-white shadow-xl transition-all relative flex flex-wrap content-start select-none"
+            >
+              {items.length === 0 ? (
+                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+                  <Printer className="w-8 h-8 stroke-[1] mb-1 text-slate-300" />
+                  <p className="text-xs font-bold text-slate-600">শিটে কোনো ছবি নেই</p>
+                  <p className="text-[10px] text-slate-400">নিচে থেকে সাইজ যোগ করুন</p>
+                </div>
+              ) : (
+                <div 
+                  className="flex flex-wrap content-start w-full h-full"
+                  style={{ gap: `${gapMm * scaleMmToPx}px` }}
+                >
+                  {items.map((item, idx) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        width: `${item.widthMm * scaleMmToPx}px`,
+                        height: `${item.heightMm * scaleMmToPx}px`,
+                      }}
+                      className={`relative group bg-slate-100 overflow-hidden ${
+                        hasPhotoBorder ? 'border border-slate-900' : ''
+                      } ${
+                        hasCuttingBorder ? 'outline outline-1 outline-dashed outline-slate-400' : ''
+                      }`}
+                    >
+                      <img
+                        src={imageSrc}
+                        alt={item.name}
+                        className="w-full h-full object-cover block"
+                      />
+                      {/* Delete individual item on touch */}
+                      <button
+                        type="button"
+                        onClick={() => setItems(prev => prev.filter((_, i) => i !== idx))}
+                        className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-rose-600 text-white text-[9px] flex items-center justify-center cursor-pointer shadow-md print:hidden"
+                        title="মুছুন"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Scrollable Middle Controls (Screenshot 3 Middle) */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-3.5 space-y-3 bg-[#0e1424]">
+            {/* 1. Selected Photo Thumbnail */}
+            <div className="flex justify-center">
+              <div className="w-13 h-15 rounded-xl overflow-hidden border-2 border-amber-500 shadow-md bg-black relative">
+                <img
+                  src={imageSrc}
+                  alt="Selected"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+
+            {/* 2. দ্রুত যোগ করুন Header */}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs font-bold text-slate-200">দ্রুত যোগ করুন</span>
+              <button
+                type="button"
+                className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 cursor-pointer"
+              >
+                ফটো সাইজ সেটিং
+              </button>
+            </div>
+
+            {/* পাসপোর্ট Row */}
+            <div className="flex items-center justify-between py-1 border-b border-slate-800/60">
+              <div>
+                <span className="text-xs font-bold text-white block">পাসপোর্ট</span>
+                <span className="text-[10px] text-slate-400">৪৫×৫৫mm</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => addPreset('passport', 1)}
+                  className="w-9 h-8 rounded-lg bg-[#f59e0b] hover:bg-amber-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  ১+
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addPreset('passport', 4)}
+                  className="w-9 h-8 rounded-lg bg-[#f59e0b] hover:bg-amber-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  ৪+
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addPreset('passport', 8)}
+                  className="w-9 h-8 rounded-lg bg-[#f59e0b] hover:bg-amber-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  ৮+
+                </button>
+              </div>
+            </div>
+
+            {/* স্ট্যাম্প Row */}
+            <div className="flex items-center justify-between py-1 border-b border-slate-800/60">
+              <div>
+                <span className="text-xs font-bold text-white block">স্ট্যাম্প</span>
+                <span className="text-[10px] text-slate-400">২০×২৫mm</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => addPreset('stamp', 1)}
+                  className="w-9 h-8 rounded-lg bg-[#64748b] hover:bg-slate-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  ১+
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addPreset('stamp', 4)}
+                  className="w-9 h-8 rounded-lg bg-[#64748b] hover:bg-slate-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  ৪+
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addPreset('stamp', 8)}
+                  className="w-9 h-8 rounded-lg bg-[#64748b] hover:bg-slate-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  ৮+
+                </button>
+              </div>
+            </div>
+
+            {/* R সাইজ Buttons */}
+            <div className="pt-1">
+              <div className="flex items-center justify-between text-xs text-slate-200 font-bold mb-2">
+                <span>R সাইজ</span>
+                <span className="text-[10px] text-slate-400 font-normal">mm</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => addRSize('2r')}
+                  className="h-8 rounded-lg bg-[#0284c7] hover:bg-sky-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  ২R
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addRSize('3r')}
+                  className="h-8 rounded-lg bg-[#8b5cf6] hover:bg-purple-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  ৩R
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addRSize('4r')}
+                  className="h-8 rounded-lg bg-[#ec4899] hover:bg-pink-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  ৪R
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => addRSize('5r')}
+                  className="h-8 rounded-lg bg-[#f97316] hover:bg-orange-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  ৫R
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addRSize('6r')}
+                  className="h-8 rounded-lg bg-[#0d9488] hover:bg-teal-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  ৬R
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addRSize('a4')}
+                  className="h-8 rounded-lg bg-[#10b981] hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                >
+                  A4
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Sticky Bottom Actions (Screenshot 3 Bottom) */}
+          <div className="p-3 border-t border-slate-800 bg-[#0e1424] flex flex-col gap-2 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+            {/* Row 1: Trash + PDF Download */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleClear}
+                className="w-11 h-10 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                title="সব ছবি মুছুন"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                className="flex-1 h-10 rounded-xl bg-[#fef3c7] hover:bg-amber-200 border border-amber-300/60 text-[#92400e] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+              >
+                <FileDown className="w-4 h-4 text-[#92400e]" />
+                <span>পিডিএফ ডাউনলোড</span>
+              </button>
+            </div>
+
+            {/* Row 2: Full-width Bright Green Print Button */}
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="w-full h-11 rounded-xl bg-[#10b981] hover:bg-emerald-600 active:scale-[0.99] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40 transition-all cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              <span>প্রিন্ট</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* DESKTOP VIEW (Two-column layout for wider screens) */}
+        {/* ========================================================================= */}
+        <aside className="hidden md:flex w-80 lg:w-88 bg-[#111726] border-r border-slate-800 flex-col shrink-0 overflow-y-auto custom-scrollbar">
           <div className="p-4 space-y-5">
             {/* 1. Selected Photo Thumbnail */}
             <div className="flex justify-center">
@@ -170,19 +448,16 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
             <div>
               <div className="flex items-center justify-between mb-2.5">
                 <span className="text-xs font-bold text-slate-300">দ্রুত যোগ করুন</span>
-                <button
-                  type="button"
-                  className="text-[11px] font-semibold text-amber-400 hover:text-amber-300 cursor-pointer"
-                >
+                <span className="text-[11px] font-semibold text-amber-400">
                   ফটো সাইজ সেটিং
-                </button>
+                </span>
               </div>
 
               {/* পাসপোর্ট */}
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <span className="text-xs font-bold text-white block">পাসপোর্ট</span>
-                  <span className="text-[10px] text-slate-400">৪০×৫০mm</span>
+                  <span className="text-[10px] text-slate-400">৪৫×৫৫mm</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button
@@ -286,10 +561,10 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => addRSize('8r')}
+                    onClick={() => addRSize('a4')}
                     className="h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center transition-all cursor-pointer"
                   >
-                    ৮R
+                    A4
                   </button>
                 </div>
               </div>
@@ -299,19 +574,6 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
             <div className="pt-2 border-t border-slate-800">
               <span className="text-xs font-bold text-slate-300 block mb-2.5">অপশন</span>
               <div className="space-y-2">
-                <label className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 cursor-pointer">
-                  <span className="text-xs text-slate-300 flex items-center gap-2">
-                    <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
-                    ফ্রি সাইজ
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={isFreeSize}
-                    onChange={(e) => setIsFreeSize(e.target.checked)}
-                    className="rounded border-slate-700 text-amber-500 focus:ring-amber-500 w-4 h-4 cursor-pointer"
-                  />
-                </label>
-
                 <label className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 cursor-pointer">
                   <span className="text-xs text-slate-300 flex items-center gap-2">
                     <Scissors className="w-3.5 h-3.5 text-slate-400" />
@@ -344,116 +606,17 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
             <div className="pt-2 border-t border-slate-800">
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="text-slate-300 font-medium">
-                  ছবির ব্যবধান (মিমি): <strong className="text-amber-400">{gapMm}MM</strong>
+                  ছবির ব্যবধান: <strong className="text-amber-400">{gapMm}MM</strong>
                 </span>
               </div>
               <input
                 type="range"
-                min="0"
-                max="10"
+                min={0}
+                max={15}
                 value={gapMm}
                 onChange={(e) => setGapMm(Number(e.target.value))}
                 className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
               />
-              <div className="flex justify-between text-[10px] text-slate-500 px-1 mt-1">
-                <span>০</span>
-                <span>৫</span>
-                <span>১০</span>
-              </div>
-            </div>
-
-            {/* 5. পেজ ও লেআউট */}
-            <div className="pt-2 border-t border-slate-800 space-y-3">
-              <span className="text-xs font-bold text-slate-300 block">পেজ ও লেআউট</span>
-
-              {/* Page Size Select */}
-              <div className="relative">
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(e.target.value as 'a4' | 'letter' | '4x6')}
-                  className="w-full h-9 bg-slate-900 border border-slate-700 rounded-xl px-3 text-xs text-slate-200 appearance-none focus:outline-none focus:border-amber-500 cursor-pointer"
-                >
-                  <option value="a4">A4 — ২১০×২৯৭mm</option>
-                  <option value="letter">Letter — ২১৬×২৭৯mm</option>
-                  <option value="4x6">4R — ১০২×১৫২mm</option>
-                </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
-              </div>
-
-              {/* Orientation Buttons */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setOrientation('portrait')}
-                  className={`h-8 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    orientation === 'portrait'
-                      ? 'bg-amber-500 text-white font-bold shadow-sm'
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
-                  }`}
-                >
-                  <span>⬒ পোর্ট্রেট</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setOrientation('landscape')}
-                  className={`h-8 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    orientation === 'landscape'
-                      ? 'bg-amber-500 text-white font-bold shadow-sm'
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
-                  }`}
-                >
-                  <span>⬓ ল্যান্ডস্কেপ</span>
-                </button>
-              </div>
-
-              {/* অটো এরেঞ্জ Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  // Re-layout/re-shuffle or balance
-                  setItems(prev => [...prev]);
-                }}
-                className="w-full h-9 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-              >
-                <Grid className="w-4 h-4" />
-                <span>অটো এরেঞ্জ</span>
-                <ChevronDown className="w-3.5 h-3.5" />
-              </button>
-
-              {/* View Zoom */}
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-slate-400">ভিউ জুম</span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setZoomPercent(prev => Math.max(50, prev - 15))}
-                    className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center cursor-pointer text-xs"
-                    title="জুম কমান"
-                  >
-                    -
-                  </button>
-                  <span className="text-xs font-mono font-semibold text-slate-200 px-1">
-                    {zoomPercent}%
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setZoomPercent(prev => Math.min(180, prev + 15))}
-                    className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center cursor-pointer text-xs"
-                    title="জুম বাড়ান"
-                  >
-                    +
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setZoomPercent(100)}
-                    className="w-7 h-7 rounded-lg bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center cursor-pointer text-xs ml-1"
-                    title="ফিট করুন"
-                  >
-                    <Expand className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -471,16 +634,16 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
             <button
               type="button"
               onClick={handleDownloadPdf}
-              className="flex-1 h-10 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              className="flex-1 h-10 rounded-xl bg-[#fef3c7] hover:bg-amber-200 border border-amber-300 text-[#92400e] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
-              <FileDown className="w-4 h-4" />
+              <FileDown className="w-4 h-4 text-[#92400e]" />
               <span>পিডিএফ ডাউনলোড</span>
             </button>
 
             <button
               type="button"
               onClick={handlePrint}
-              className="flex-1 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/40 transition-colors cursor-pointer"
+              className="flex-1 h-10 rounded-xl bg-[#10b981] hover:bg-emerald-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/40 transition-colors cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>প্রিন্ট</span>
@@ -488,11 +651,9 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
           </div>
         </aside>
 
-        {/* RIGHT LIVE A4 CANVAS PREVIEW */}
-        <main className="flex-1 bg-[#232733] overflow-auto flex items-center justify-center p-6 custom-scrollbar">
-          {/* Paper Canvas (A4 / Letter Sheet) */}
+        {/* RIGHT LIVE A4 CANVAS PREVIEW (Desktop) */}
+        <main className="hidden md:flex flex-1 bg-[#232733] overflow-auto items-center justify-center p-6 custom-scrollbar">
           <div
-            ref={printSheetRef}
             style={{
               width: `${pageWidthMm * scaleMmToPx}px`,
               height: `${pageHeightMm * scaleMmToPx}px`,
@@ -509,9 +670,7 @@ export const AiPrintSheetView: React.FC<AiPrintSheetViewProps> = ({
             ) : (
               <div 
                 className="flex flex-wrap content-start w-full h-full"
-                style={{
-                  gap: `${gapMm * scaleMmToPx}px`
-                }}
+                style={{ gap: `${gapMm * scaleMmToPx}px` }}
               >
                 {items.map((item, idx) => (
                   <div

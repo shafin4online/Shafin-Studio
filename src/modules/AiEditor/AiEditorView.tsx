@@ -7,17 +7,22 @@ import { AiGeneratedSidebar, ImageAdjustments } from './components/AiGeneratedSi
 import { AiPrintSheetView } from './components/AiPrintSheetView';
 import { buildDynamicPrompt } from './utils/promptBuilder';
 import { ApiPoolManagerModal } from './components/ApiPoolManagerModal';
+import { MobilePhotoSizeSheet } from './components/mobile/MobilePhotoSizeSheet';
+import { MobileStyleBgSheet } from './components/mobile/MobileStyleBgSheet';
+import { MobileEnhancementSheet } from './components/mobile/MobileEnhancementSheet';
+import { MobileBottomDock } from './components/mobile/MobileBottomDock';
 import { useStudio } from '@/context/StudioContext';
-import { Sparkles, ArrowLeft, Server } from 'lucide-react';
+import { Sparkles, ArrowLeft, Server, AlertCircle, X } from 'lucide-react';
 
 interface AiEditorViewProps {
   onBackToStudio?: () => void;
 }
 
 export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) => {
-  const { addImages, setActiveImage } = useStudio();
+  const { addStudioImage, setActiveImage, setActiveView } = useStudio();
 
   // State
+  const [activeMobileSheet, setActiveMobileSheet] = useState<'size' | 'styleBg' | 'enhancements' | null>(null);
   const [isApiManagerOpen, setIsApiManagerOpen] = useState(false);
   const [selectedSize, setSelectedSize] = useState<PhotoSizeId>('passport');
   const [selectedBg, setSelectedBg] = useState<BgColorId>('white');
@@ -57,6 +62,7 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationProgress, setGenerationProgress] = useState<string>('');
+  const [apiErrorNotice, setApiErrorNotice] = useState<string | null>(null);
 
   // Post-generation image adjustments
   const [adjustments, setAdjustments] = useState<ImageAdjustments>({
@@ -155,6 +161,7 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
         ? customBgHex 
         : selectedBg === 'white' ? '#FFFFFF' : '#3b82f6';
 
+      setApiErrorNotice(null);
       const response = await fetch('/api/ai-editor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,8 +182,14 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
         const data = await response.json();
         if (data.image) {
           setGeneratedImage(data.image);
+          setApiErrorNotice(null);
           setIsGenerating(false);
           return;
+        }
+      } else if (response) {
+        const errData = await response.json().catch(() => null);
+        if (errData?.error) {
+          setApiErrorNotice(errData.error);
         }
       }
 
@@ -229,6 +242,63 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
         } else {
           setGeneratedImage(uploadedImageLeft || uploadedImageRight || uploadedImage);
         }
+      } else if (uploadedImage) {
+        // High-fidelity client-side portrait framing & background rendering
+        const canvas = document.createElement('canvas');
+        let targetW = 900;
+        let targetH = 1100; // default 45x55 passport ratio
+        if (selectedSize === 'stamp') {
+          targetW = 800;
+          targetH = 1000;
+        } else if (selectedSize === 'square') {
+          targetW = 1000;
+          targetH = 1000;
+        } else if (selectedSize === '3r') {
+          targetW = 1050;
+          targetH = 1500;
+        } else if (selectedSize === '4r') {
+          targetW = 1200;
+          targetH = 1800;
+        }
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = effectiveBgHex;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          await new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+            img.src = uploadedImage;
+          });
+
+          if (img.width && img.height) {
+            const imgAspect = img.width / img.height;
+            const canvasAspect = targetW / targetH;
+            let drawW = targetW;
+            let drawH = targetH;
+            let drawX = 0;
+            let drawY = 0;
+
+            if (imgAspect > canvasAspect) {
+              drawW = targetH * imgAspect;
+              drawX = (targetW - drawW) / 2;
+            } else {
+              drawH = targetW / imgAspect;
+              drawY = 0; // Top-align portrait
+            }
+
+            ctx.drawImage(img, drawX, drawY, drawW, drawH);
+            setGeneratedImage(canvas.toDataURL('image/png'));
+          } else {
+            setGeneratedImage(uploadedImage);
+          }
+        } else {
+          setGeneratedImage(uploadedImage);
+        }
       } else {
         setGeneratedImage(uploadedImage);
       }
@@ -240,41 +310,21 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
   };
 
   const handleSendToStudio = (imageSrc: string) => {
+    const id = `ai-gen-${Date.now()}`;
     const newImage = {
-      id: `ai-gen-${Date.now()}`,
-      originalUrl: imageSrc,
-      editedUrl: imageSrc,
+      id,
       name: `AI_${selectedSize.toUpperCase()}_Photo.png`,
-      state: {
-        brightness: 100,
-        contrast: 100,
-        saturation: 100,
-        exposure: 0,
-        highlights: 0,
-        shadows: 0,
-        sharpness: 0,
-        rotation: 0,
-        flipHorizontal: false,
-        flipVertical: false,
-        zoom: 1,
-        pan: { x: 0, y: 0 },
-        crop: {
-          x: 0,
-          y: 0,
-          width: 0,
-          height: 0,
-          aspectRatio: selectedSize === 'passport' ? 45 / 55 : 1
-        },
-        hasBorder: true,
-        borderColor: '#ffffff',
-        borderWidth: 2,
-        backgroundColor: '#ffffff'
-      }
+      original: imageSrc,
+      edited: imageSrc,
+      thumbnail: imageSrc
     };
 
-    addImages([newImage]);
-    setActiveImage(newImage.id);
+    addStudioImage(newImage);
+    setActiveImage(id);
 
+    if (setActiveView) {
+      setActiveView('studio');
+    }
     if (onBackToStudio) {
       onBackToStudio();
     }
@@ -331,25 +381,28 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
       />
 
       {/* Top Banner on Mobile for Back navigation & API Pool */}
-      <div className="lg:hidden flex items-center justify-between px-3 py-2 bg-[#0e1322] border-b border-slate-800">
+      <div className="lg:hidden flex items-center justify-between px-3 py-2.5 bg-[#0e1322] border-b border-slate-800 shrink-0 select-none">
         <button
+          type="button"
           onClick={onBackToStudio}
-          className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white cursor-pointer"
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer px-2 py-1 rounded-lg hover:bg-slate-800/80 transition-colors"
         >
           <ArrowLeft className="w-4 h-4 text-amber-500" />
           <span>স্টুডিও</span>
         </button>
+        <span className="text-xs font-bold text-slate-200">AI স্টুডিও ফটো এডিটর</span>
         <button
+          type="button"
           onClick={() => setIsApiManagerOpen(true)}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 text-[11px] font-bold text-amber-400 border border-slate-700 cursor-pointer"
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-[11px] font-bold text-amber-400 border border-slate-700/80 cursor-pointer transition-colors shadow-2xs"
         >
-          <Server className="w-3.5 h-3.5" />
+          <Server className="w-3.5 h-3.5 text-amber-400" />
           <span>API পুল</span>
         </button>
       </div>
 
-      {/* Left Sidebar (ছবি তৈরির সেটিংস - exact match to screenshot) */}
-      <div className="h-full shrink-0 z-10 flex flex-col">
+      {/* Left Sidebar (ছবি তৈরির সেটিংস) - Hidden on mobile, visible on desktop */}
+      <div className="hidden lg:flex h-full shrink-0 z-10 flex-col">
         <AiEditorSidebar
           selectedSize={selectedSize}
           selectedBg={selectedBg}
@@ -382,7 +435,36 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
       </div>
 
       {/* Center Canvas Workspace */}
-      <main className="flex-1 relative flex flex-col h-full overflow-hidden bg-[#0b0f19]">
+      <main className="flex-1 relative flex flex-col h-full overflow-hidden bg-[#0b0f19] pb-20 lg:pb-0">
+        {/* API Error Notification Alert */}
+        {apiErrorNotice && (
+          <div className="mx-4 mt-3 p-3 rounded-xl bg-amber-950/90 border border-amber-500/50 text-amber-200 text-xs flex items-center justify-between gap-3 shadow-lg z-30 shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <div className="min-w-0">
+                <span className="font-bold text-amber-300 block">AI সার্ভিস সংক্রান্ত তথ্য:</span>
+                <span className="text-[11px] text-amber-200/90 truncate block">{apiErrorNotice}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsApiManagerOpen(true)}
+                className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs cursor-pointer shadow-xs transition-colors"
+              >
+                কী পুল ম্যানেজার
+              </button>
+              <button
+                type="button"
+                onClick={() => setApiErrorNotice(null)}
+                className="w-6 h-6 rounded-md hover:bg-white/10 text-amber-300 flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Top-Right Floating Mobile QR Card (Desktop only, when image is not yet generated) */}
         {!generatedImage && (
           <div className="hidden md:block absolute top-5 right-5 z-20">
@@ -437,6 +519,8 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
             onFeedbackBad={() => {
               console.log('User disliked the generated photo');
             }}
+            onDownloadPhoto={handleDownloadPhoto}
+            onOpenPrintSheet={() => setIsPrintSheetOpen(true)}
           />
         </div>
       </main>
@@ -453,6 +537,56 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
           onPrint={() => setIsPrintSheetOpen(true)}
         />
       )}
+
+      {/* Mobile Floating Bottom Dock (Mobile only, hidden when generated image result is active) */}
+      {!generatedImage && (
+        <MobileBottomDock
+          selectedSize={selectedSize}
+          selectedDressId={selectedDressId}
+          selectedBg={selectedBg}
+          customBgHex={customBgHex}
+          selectedEnhancements={selectedEnhancements}
+          isProcessing={isGenerating}
+          hasInputImage={Boolean(uploadedImage || (uploadedImageLeft && uploadedImageRight))}
+          onOpenSizeSheet={() => setActiveMobileSheet('size')}
+          onOpenStyleBgSheet={() => setActiveMobileSheet('styleBg')}
+          onOpenEnhancementSheet={() => setActiveMobileSheet('enhancements')}
+          onGenerate={handleGeneratePhoto}
+          onBackToStudio={onBackToStudio}
+        />
+      )}
+
+      {/* Mobile Bottom Sheets (Matching User Screenshots 1, 2, 3) */}
+      <MobilePhotoSizeSheet
+        isOpen={activeMobileSheet === 'size'}
+        onClose={() => setActiveMobileSheet(null)}
+        selectedSize={selectedSize}
+        onSelectSize={(newSize) => {
+          setSelectedSize(newSize);
+        }}
+      />
+
+      <MobileStyleBgSheet
+        isOpen={activeMobileSheet === 'styleBg'}
+        onClose={() => setActiveMobileSheet(null)}
+        selectedDressId={selectedDressId}
+        dressCustomization={dressCustomization}
+        onSelectDress={(id) => setSelectedDressId(id)}
+        onChangeDressCustomization={handleChangeDressCustomization}
+        selectedBg={selectedBg}
+        customBgHex={customBgHex}
+        onSelectBg={setSelectedBg}
+        onCustomBgChange={setCustomBgHex}
+      />
+
+      <MobileEnhancementSheet
+        isOpen={activeMobileSheet === 'enhancements'}
+        onClose={() => setActiveMobileSheet(null)}
+        selectedEnhancements={selectedEnhancements}
+        onToggleEnhancement={handleToggleEnhancement}
+        customPrompt={customInstruction}
+        onChangeCustomPrompt={setCustomInstruction}
+      />
     </div>
   );
 };

@@ -34,26 +34,13 @@ const StudioWorkspace: React.FC = () => {
 
   if (activeView === 'ai-editor') {
     return (
-      <div className="flex flex-col h-screen bg-[#0c101d] text-foreground overflow-hidden pb-16 lg:pb-0">
-        <StudioHeader />
+      <div className="flex flex-col h-screen bg-[#0c101d] text-foreground overflow-hidden">
+        {/* Desktop Header - on mobile, AiEditorView provides a dedicated clean mobile top bar */}
+        <div className="hidden lg:block shrink-0">
+          <StudioHeader />
+        </div>
         <div className="flex-1 overflow-hidden relative">
           <AiEditorView onBackToStudio={() => setActiveView('studio')} />
-        </div>
-
-        {/* Mobile Sticky Bottom Bar in AI Editor */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#090a0d] border-t border-border/40 px-2 flex items-center justify-around z-40 shadow-2xl">
-          <button
-            onClick={() => setActiveView('studio')}
-            className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-white transition-all duration-200 hover:scale-105 active:scale-95 h-12 w-20 text-center cursor-pointer"
-          >
-            <Home className="h-5 w-5 text-indigo-400" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Classic Studio</span>
-          </button>
-
-          <div className="flex flex-col items-center justify-center gap-1 text-amber-400 font-bold h-12 w-20 text-center">
-            <Sparkles className="h-5 w-5 text-amber-400 animate-pulse" />
-            <span className="text-[9px] font-bold uppercase tracking-wider">AI Editor</span>
-          </div>
         </div>
       </div>
     );

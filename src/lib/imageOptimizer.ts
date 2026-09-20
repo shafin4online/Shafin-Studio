@@ -3,6 +3,12 @@
  * 300kb - 400kb range while maintaining professional visual fidelity and details.
  */
 export async function optimizeUploadImage(file: File): Promise<File> {
+  // Defensive guard: Ensure input is a valid Blob/File before calling URL.createObjectURL
+  if (!file || typeof file !== 'object' || !(file instanceof Blob)) {
+    console.warn('[ImageOptimizer] Argument is not a valid Blob/File. Bypassing compression.');
+    return file;
+  }
+
   const targetMax = 420 * 1024; // 420KB max threshold
   const targetMin = 280 * 1024; // 280KB min target
 

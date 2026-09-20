@@ -59,7 +59,7 @@ export const AiGeneratedSidebar: React.FC<AiGeneratedSidebarProps> = ({
   };
 
   return (
-    <aside className="w-80 lg:w-88 h-full bg-[#111726] border-l border-slate-800/80 flex flex-col shrink-0 select-none overflow-y-auto custom-scrollbar">
+    <aside className="hidden lg:flex lg:w-88 h-full bg-[#111726] border-l border-slate-800/80 flex-col shrink-0 select-none overflow-y-auto custom-scrollbar pb-6">
       {/* 1. Mobile Upload QR Card */}
       <div className="p-4 pb-2">
         <div className="bg-[#182032] border border-slate-700/60 rounded-2xl p-3.5 shadow-sm">

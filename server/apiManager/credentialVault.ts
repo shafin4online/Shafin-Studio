@@ -1,5 +1,5 @@
 import { ApiCredential, MaskedApiCredential, TaskType, ApiProvider } from './types';
-import { PRECONFIGURED_KEYS } from './preconfiguredKeys';
+import { loadPreconfiguredKeys } from './preconfiguredKeys';
 
 const ALL_TASKS: TaskType[] = [
   'passport_photo',
@@ -24,50 +24,79 @@ class CredentialVault {
   }
 
   /**
-   * Parse keys from environment variables:
-   * 1. GEMINI_API_KEY (single default)
-   * 2. GEMINI_API_KEYS (comma-separated multiple keys)
+   * Parse keys safely from environment variables (No hardcoded secrets in Git):
+   * 1. Preconfigured keys loaded from GEMINI_ACCOUNTS_JSON or GEMINI_API_KEYS
+   * 2. GEMINI_API_KEY (single default)
    * 3. GEMINI_KEY_1, GEMINI_KEY_2, etc. (up to 30)
    */
   private initializeFromEnv(): void {
-    const collectedKeys = new Set<string>();
+    const existingKeys = new Set<string>();
 
-    // 1. Primary key
-    const primary = process.env.GEMINI_API_KEY?.trim();
-    if (primary) {
-      collectedKeys.add(primary);
-    }
-
-    // 2. Comma-separated list
-    const multiple = process.env.GEMINI_API_KEYS;
-    if (multiple) {
-      multiple.split(',').forEach(k => {
-        const clean = k.trim();
-        if (clean) collectedKeys.add(clean);
-      });
-    }
-
-    // 3. Numbered keys GEMINI_KEY_1 to 30
-    for (let i = 1; i <= 30; i++) {
-      const k = process.env[`GEMINI_KEY_${i}`]?.trim() || process.env[`GEMINI_API_KEY_${i}`]?.trim();
-      if (k) {
-        collectedKeys.add(k);
+    // 1. Add keys from safe env loader
+    const loadedKeys = loadPreconfiguredKeys();
+    loadedKeys.forEach(item => {
+      const key = item.apiKey.trim();
+      if (key && !existingKeys.has(key)) {
+        existingKeys.add(key);
+        this.addCredential({
+          provider: 'google',
+          name: item.name,
+          apiKey: key,
+          models: ['gemini-3.1-flash-lite-image', 'gemini-3.1-flash-image'],
+          supportedTasks: ALL_TASKS,
+          priority: 1
+        });
       }
-    }
+    });
 
-    // Register all collected keys
-    let idx = 1;
-    collectedKeys.forEach(key => {
+    // 2. Primary env key
+    const primary = process.env.GEMINI_API_KEY?.trim();
+    if (primary && !existingKeys.has(primary)) {
+      existingKeys.add(primary);
       this.addCredential({
         provider: 'google',
-        name: `Google Account ${String(idx).padStart(2, '0')}`,
-        apiKey: key,
+        name: 'Default Env Key',
+        apiKey: primary,
         models: ['gemini-3.1-flash-lite-image', 'gemini-3.1-flash-image'],
         supportedTasks: ALL_TASKS,
-        priority: idx <= 3 ? 1 : 2
+        priority: 1
       });
-      idx++;
-    });
+    }
+
+    // 3. Comma-separated list from env
+    const multiple = process.env.GEMINI_API_KEYS;
+    if (multiple) {
+      multiple.split(',').forEach((k, idx) => {
+        const clean = k.trim();
+        if (clean && !existingKeys.has(clean)) {
+          existingKeys.add(clean);
+          this.addCredential({
+            provider: 'google',
+            name: `Env Pool Key ${idx + 1}`,
+            apiKey: clean,
+            models: ['gemini-3.1-flash-lite-image', 'gemini-3.1-flash-image'],
+            supportedTasks: ALL_TASKS,
+            priority: 2
+          });
+        }
+      });
+    }
+
+    // 4. Numbered keys GEMINI_KEY_1 to 30
+    for (let i = 1; i <= 30; i++) {
+      const k = process.env[`GEMINI_KEY_${i}`]?.trim() || process.env[`GEMINI_API_KEY_${i}`]?.trim();
+      if (k && !existingKeys.has(k)) {
+        existingKeys.add(k);
+        this.addCredential({
+          provider: 'google',
+          name: `Env Key ${i}`,
+          apiKey: k,
+          models: ['gemini-3.1-flash-lite-image', 'gemini-3.1-flash-image'],
+          supportedTasks: ALL_TASKS,
+          priority: 2
+        });
+      }
+    }
 
     console.log(`[CredentialVault] Initialized with ${this.credentials.size} API key credentials in pool.`);
   }

@@ -1,6 +1,23 @@
 import { apiSelector } from './apiSelector';
 import { cooldownManager } from './cooldownManager';
+import { vault } from './credentialVault';
 import { TaskRequest, TaskType, ExecutionResult, ApiCredential } from './types';
+
+function formatUserFriendlyError(errString: string): string {
+  if (errString.includes('limit: 0') || (errString.includes('free_tier') && errString.includes('Quota exceeded'))) {
+    return 'ইমেজ মডেল কোটা সীমা ত্রুটি (Quota limit: 0): গুগল এআই স্টুডিওতে ইমেজ জেনারেশন মডেলের জন্য ফ্রি কোটা নেই (limit: 0)। এটি ব্যবহার করতে গুগল ক্লাউড প্রজেক্টে বিলিং (Pay-as-you-go) সক্রিয় করতে হবে অথবা বিলিং-সক্ষম পেইড API কী ব্যবহার করতে হবে।';
+  }
+  if (errString.includes('PERMISSION_DENIED') || errString.includes('denied access') || errString.includes('403')) {
+    return 'প্রজেক্ট পারমিশন ত্রুটি (403 Permission Denied): এই গুগল প্রজেক্টটির অ্যাক্সেস গুগল কর্তৃক স্থগিত বা নিষিদ্ধ করা হয়েছে। API পুল থেকে সক্রিয় কী ব্যবহার করুন।';
+  }
+  if (errString.includes('429') || errString.includes('RESOURCE_EXHAUSTED')) {
+    return 'কোটা/রেট লিমিট এক্সিডেড (429 Rate Limit): অতিরিক্ত রিকোয়েস্টের কারণে কিছুক্ষণ অপেক্ষা করে পুনরায় চেষ্টা করুন।';
+  }
+  if (errString.includes('API_KEY_INVALID') || errString.includes('401')) {
+    return 'অবৈধ API কী (401 Invalid Key): কী-টি সঠিক নয়। Google AI Studio থেকে নতুন কী যুক্ত করুন।';
+  }
+  return errString;
+}
 
 export class TaskRouter {
   /**
@@ -33,10 +50,11 @@ export class TaskRouter {
   public async executeWithFailover(payload: TaskRequest): Promise<ExecutionResult> {
     const task = payload.task;
     const attemptedIds = new Set<string>();
-    const maxAttempts = 4;
+    const totalPoolKeys = vault.getAllCredentials().length;
+    const maxAttempts = Math.max(10, Math.min(totalPoolKeys, 30));
     let lastError: string = 'No eligible API key found.';
 
-    console.log(`[TaskRouter] Starting execution for task: '${task}' with up to ${maxAttempts} failover attempts.`);
+    console.log(`[TaskRouter] Starting execution for task: '${task}' across pool (${totalPoolKeys} keys registered, max failover: ${maxAttempts}).`);
 
     while (attemptedIds.size < maxAttempts) {
       const cred = apiSelector.selectEligibleApi(task, attemptedIds);
@@ -70,20 +88,17 @@ export class TaskRouter {
         lastError = errorMsg;
         console.error(`[TaskRouter] ${cred.id} failed on attempt ${attemptedIds.size}:`, errorMsg);
 
-        const { isRetryable } = cooldownManager.handleApiError(cred, err);
+        // Update cooldown or failed state for this key
+        cooldownManager.handleApiError(cred, err);
 
-        if (!isRetryable) {
-          console.warn(`[TaskRouter] Non-retryable error encountered on ${cred.id}. Stopping failover.`);
-          break;
-        }
-
+        // Automatically failover to the next available key in the pool
         console.log(`[TaskRouter] Auto-failing over to next available API key in pool...`);
       }
     }
 
     return {
       success: false,
-      error: `AI processing error: ${lastError}`,
+      error: formatUserFriendlyError(lastError),
       attempts: attemptedIds.size
     };
   }
@@ -103,7 +118,14 @@ export class TaskRouter {
    */
   private async callGoogleGenAi(cred: ApiCredential, payload: TaskRequest): Promise<string | null> {
     const { GoogleGenAI } = await import('@google/genai');
-    const ai = new GoogleGenAI({ apiKey: cred.apiKey });
+    const ai = new GoogleGenAI({
+      apiKey: cred.apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
 
     // Construct multimodal parts
     const parts: Array<{ inlineData?: { data: string; mimeType: string }; text?: string }> = [];
@@ -136,22 +158,42 @@ export class TaskRouter {
       });
     }
 
-    // Use recommended model from gemini-api skill: 'gemini-3.1-flash-lite-image' or 'gemini-3.1-flash-image'
-    const modelName = cred.models[0] || 'gemini-3.1-flash-lite-image';
+    // Candidate models to try for image tasks
+    const candidateModels = cred.models && cred.models.length > 0 
+      ? cred.models 
+      : ['gemini-3.1-flash-lite-image', 'gemini-3.1-flash-image'];
 
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: {
-        parts
-      }
-    });
+    let lastModelError: unknown = null;
+    for (const modelName of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: {
+            parts
+          }
+        });
 
-    const candidateParts = response.candidates?.[0]?.content?.parts || [];
-    for (const part of candidateParts) {
-      if (part.inlineData?.data) {
-        const mime = part.inlineData.mimeType || 'image/png';
-        return `data:${mime};base64,${part.inlineData.data}`;
+        const candidateParts = response.candidates?.[0]?.content?.parts || [];
+        for (const part of candidateParts) {
+          if (part.inlineData?.data) {
+            const mime = part.inlineData.mimeType || 'image/png';
+            return `data:${mime};base64,${part.inlineData.data}`;
+          }
+        }
+      } catch (err: unknown) {
+        lastModelError = err;
+        const errStr = String(err);
+        if (errStr.includes('404') || errStr.includes('not found') || errStr.includes('no longer supported')) {
+          console.warn(`[TaskRouter] Model ${modelName} not available for ${cred.id}. Trying next candidate model...`);
+          continue;
+        }
+        // Quota, auth, rate limit, or other API error - propagate so failover moves to next key
+        throw err;
       }
+    }
+
+    if (lastModelError) {
+      throw lastModelError;
     }
 
     return null;
