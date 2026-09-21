@@ -277,15 +277,20 @@ export function createApiApp() {
         });
       }
 
-      return res.json({ 
+      return res.status(200).json({ 
         success: false, 
+        error: execution.error || "Model completed without returning an image part.",
         message: execution.error || "Model completed without returning an image part.",
         attempts: execution.attempts
       });
     } catch (error: unknown) {
       console.error("[API] AI generation router error:", error);
       const errorMessage = error instanceof Error ? error.message : "AI generation failed";
-      res.status(500).json({ error: errorMessage });
+      res.status(200).json({ 
+        success: false, 
+        error: errorMessage,
+        message: errorMessage
+      });
     }
   });
 

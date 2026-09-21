@@ -185,11 +185,13 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
           setApiErrorNotice(null);
           setIsGenerating(false);
           return;
+        } else if (data.error || data.message) {
+          setApiErrorNotice(data.error || data.message);
         }
       } else if (response) {
         const errData = await response.json().catch(() => null);
-        if (errData?.error) {
-          setApiErrorNotice(errData.error);
+        if (errData?.error || errData?.message) {
+          setApiErrorNotice(errData.error || errData.message);
         }
       }
 
