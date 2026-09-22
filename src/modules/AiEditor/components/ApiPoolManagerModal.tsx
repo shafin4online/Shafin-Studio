@@ -76,11 +76,67 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
         const data = await res.json();
         if (data.summary) setSummary(data.summary);
         if (data.keys) setKeys(data.keys);
+      } else {
+        // Fallback to local storage if API call fails
+        loadLocalKeysFallback();
       }
     } catch (err) {
       console.error('Failed to fetch API pool status:', err);
+      loadLocalKeysFallback();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadLocalKeysFallback = () => {
+    try {
+      const stored = localStorage.getItem('shafinbd_gemini_keys');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const fallbackKeys: MaskedCredential[] = parsed.map((item, idx) => ({
+            id: `LOCAL-${String(idx + 1).padStart(2, '0')}`,
+            provider: 'google',
+            name: item.name || `Local Key ${idx + 1}`,
+            maskedKey: item.apiKey ? `${item.apiKey.slice(0, 4)}...${item.apiKey.slice(-4)}` : 'AIza...',
+            supportedTasks: ['passport_photo', 'suit_dress_change', 'background_replace', 'dual_photo'],
+            priority: 1,
+            status: 'ACTIVE',
+            cooldownRemainingSeconds: 0,
+            stats: {
+              requests: 0,
+              success: 0,
+              failure: 0,
+              rateLimits: 0,
+              lastUsedAt: null,
+              lastError: null
+            }
+          }));
+          setKeys(fallbackKeys);
+          setSummary({
+            total: fallbackKeys.length,
+            active: fallbackKeys.length,
+            cooldown: 0,
+            failed: 0,
+            disabled: 0
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed loading local key fallback:', e);
+    }
+  };
+
+  const saveKeyToLocal = (key: string, name?: string) => {
+    try {
+      const stored = localStorage.getItem('shafinbd_gemini_keys');
+      const list = stored ? JSON.parse(stored) : [];
+      if (!list.some((k: { apiKey: string }) => k.apiKey === key)) {
+        list.push({ apiKey: key, name: name || `Gemini Account ${list.length + 1}` });
+        localStorage.setItem('shafinbd_gemini_keys', JSON.stringify(list));
+      }
+    } catch (e) {
+      console.warn('Failed to save key locally:', e);
     }
   };
 
@@ -141,6 +197,19 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
     e.preventDefault();
     if (!bulkText.trim()) return;
 
+    // Parse keys for local storage
+    const lines = bulkText.trim().split(/[\r\n]+/);
+    for (const line of lines) {
+      const clean = line.trim();
+      if (!clean) continue;
+      if (clean.includes(':')) {
+        const [name, key] = clean.split(':');
+        if (key && key.trim()) saveKeyToLocal(key.trim(), name.trim());
+      } else {
+        saveKeyToLocal(clean);
+      }
+    }
+
     try {
       const res = await fetch('/api/admin/api-pool/bulk-keys', {
         method: 'POST',
@@ -155,9 +224,20 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
         setShowBulkForm(false);
         setActionMsg(data.message || 'সবগুলো কী সফলভাবে পুলে যুক্ত করা হয়েছে!');
         setTimeout(() => setActionMsg(null), 3000);
+      } else {
+        loadLocalKeysFallback();
+        setBulkText('');
+        setShowBulkForm(false);
+        setActionMsg('কী লোকাল স্টোরেজে সফলভাবে সেভ করা হয়েছে!');
+        setTimeout(() => setActionMsg(null), 3000);
       }
     } catch (err) {
       console.error('Error bulk adding keys:', err);
+      loadLocalKeysFallback();
+      setBulkText('');
+      setShowBulkForm(false);
+      setActionMsg('কী লোকাল স্টোরেজে সফলভাবে সেভ করা হয়েছে!');
+      setTimeout(() => setActionMsg(null), 3000);
     }
   };
 
@@ -183,13 +263,19 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
     e.preventDefault();
     if (!newKey.trim()) return;
 
+    const keyToAdd = newKey.trim();
+    const nameToAdd = newName.trim() || undefined;
+
+    // Save to local storage for cold-start resilience
+    saveKeyToLocal(keyToAdd, nameToAdd);
+
     try {
       const res = await fetch('/api/admin/api-pool/key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          apiKey: newKey.trim(),
-          name: newName.trim() || undefined
+          apiKey: keyToAdd,
+          name: nameToAdd
         })
       });
       if (res.ok) {
@@ -201,9 +287,22 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
         setShowAddForm(false);
         setActionMsg(`${data.id || 'কী'} সফলভাবে পুলে যোগ করা হয়েছে!`);
         setTimeout(() => setActionMsg(null), 3000);
+      } else {
+        loadLocalKeysFallback();
+        setNewKey('');
+        setNewName('');
+        setShowAddForm(false);
+        setActionMsg('কী লোকাল স্টোরেজে সেভ করা হয়েছে এবং রেডি!');
+        setTimeout(() => setActionMsg(null), 3000);
       }
     } catch (err) {
       console.error('Error adding key:', err);
+      loadLocalKeysFallback();
+      setNewKey('');
+      setNewName('');
+      setShowAddForm(false);
+      setActionMsg('কী লোকাল স্টোরেজে সেভ করা হয়েছে এবং রেডি!');
+      setTimeout(() => setActionMsg(null), 3000);
     }
   };
 

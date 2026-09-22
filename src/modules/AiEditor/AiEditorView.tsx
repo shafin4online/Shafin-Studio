@@ -162,6 +162,19 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
         : selectedBg === 'white' ? '#FFFFFF' : '#3b82f6';
 
       setApiErrorNotice(null);
+
+      // Retrieve locally saved client keys for multi-instance / serverless cold-start resilience
+      let clientKeys: Array<{ name: string; apiKey: string }> = [];
+      try {
+        const stored = localStorage.getItem('shafinbd_gemini_keys');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) clientKeys = parsed;
+        }
+      } catch (e) {
+        console.warn('Failed to parse local stored keys:', e);
+      }
+
       const response = await fetch('/api/ai-editor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -174,7 +187,8 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
           dressId: isDualMode ? undefined : selectedDressId,
           leftDressId,
           rightDressId,
-          bgHex: effectiveBgHex
+          bgHex: effectiveBgHex,
+          clientKeys
         })
       }).catch(() => null);
 

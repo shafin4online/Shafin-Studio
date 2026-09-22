@@ -1,6 +1,5 @@
 import express from "express";
-import { Client } from "@gradio/client";
-import { taskRouter, vault, apiSelector } from "../server/apiManager/index";
+import { taskRouter, vault, apiSelector } from "./apiManager/index";
 
 export function createApiApp() {
   const app = express();
@@ -31,6 +30,7 @@ export function createApiApp() {
       const buffer = Buffer.from(base64Data, 'base64');
       const blob = new Blob([buffer], { type: mime });
 
+      const { Client } = await import("@gradio/client");
       const client = await Client.connect("rmayormartins/image-enhancer");
       const result = await client.predict("/predict", [
         blob,
@@ -79,7 +79,13 @@ export function createApiApp() {
       const keys = vault.getMaskedCredentials();
       res.json({ success: true, summary, keys });
     } catch (err: unknown) {
-      res.status(500).json({ error: String(err) });
+      console.error("[API] Error fetching pool summary:", err);
+      res.json({ 
+        success: true, 
+        summary: { total: 0, active: 0, cooldown: 0, failed: 0, disabled: 0 }, 
+        keys: [],
+        warning: String(err)
+      });
     }
   });
 
@@ -238,10 +244,29 @@ export function createApiApp() {
   // AI Editor endpoint powered by Centralized API Pool & Task Router
   app.post("/api/ai-editor", async (req, res) => {
     try {
-      const { image, leftImage, rightImage, prompt, size, task, dressId, bgHex } = req.body;
+      const { image, leftImage, rightImage, prompt, size, task, dressId, bgHex, clientKeys } = req.body;
 
       if (!image && !leftImage && !rightImage) {
         return res.status(400).json({ error: "No image provided for AI processing" });
+      }
+
+      // If client provided keys saved in browser, ensure they are registered in the current function instance
+      if (Array.isArray(clientKeys)) {
+        const existingKeys = new Set(vault.getAllCredentials().map(c => c.apiKey));
+        for (const k of clientKeys) {
+          if (typeof k === 'object' && k && k.apiKey) {
+            const trimmed = String(k.apiKey).trim();
+            if (trimmed && !existingKeys.has(trimmed)) {
+              existingKeys.add(trimmed);
+              vault.addCredential({
+                provider: 'google',
+                name: k.name || 'Client Key',
+                apiKey: trimmed,
+                priority: 1
+              });
+            }
+          }
+        }
       }
 
       const totalPoolKeys = vault.getAllCredentials().length;
