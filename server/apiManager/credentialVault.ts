@@ -1,5 +1,5 @@
-import { ApiCredential, MaskedApiCredential, TaskType, ApiProvider } from './types';
-import { loadPreconfiguredKeys } from './preconfiguredKeys';
+import type { ApiCredential, MaskedApiCredential, TaskType, ApiProvider } from './types.ts';
+import { loadPreconfiguredKeys } from './preconfiguredKeys.ts';
 
 const ALL_TASKS: TaskType[] = [
   'passport_photo',

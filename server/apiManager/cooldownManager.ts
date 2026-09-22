@@ -1,5 +1,5 @@
-import { vault } from './credentialVault';
-import { ApiCredential } from './types';
+import { vault } from './credentialVault.ts';
+import type { ApiCredential } from './types.ts';
 
 export class CooldownManager {
   /**

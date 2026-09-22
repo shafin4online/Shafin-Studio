@@ -1,7 +1,7 @@
-import { apiSelector } from './apiSelector';
-import { cooldownManager } from './cooldownManager';
-import { vault } from './credentialVault';
-import { TaskRequest, TaskType, ExecutionResult, ApiCredential } from './types';
+import { apiSelector } from './apiSelector.ts';
+import { cooldownManager } from './cooldownManager.ts';
+import { vault } from './credentialVault.ts';
+import type { TaskRequest, TaskType, ExecutionResult, ApiCredential } from './types.ts';
 
 function formatUserFriendlyError(errString: string): string {
   if (errString.includes('limit: 0') || (errString.includes('free_tier') && errString.includes('Quota exceeded'))) {

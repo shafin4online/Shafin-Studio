@@ -1,6 +1,6 @@
-import { vault } from './credentialVault';
-import { cooldownManager } from './cooldownManager';
-import { ApiCredential, TaskType } from './types';
+import { vault } from './credentialVault.ts';
+import { cooldownManager } from './cooldownManager.ts';
+import type { ApiCredential, TaskType } from './types.ts';
 
 export class ApiSelector {
   private rotationIndex: number = 0;

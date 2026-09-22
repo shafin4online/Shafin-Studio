@@ -1,5 +1,5 @@
 import express from "express";
-import { taskRouter, vault, apiSelector } from "./apiManager/index";
+import { taskRouter, vault, apiSelector } from "./apiManager/index.ts";
 
 export function createApiApp() {
   const app = express();
