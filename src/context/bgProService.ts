@@ -18,7 +18,6 @@ export async function processBackgroundRemoval({
   const resultBlob = await removeBackground(imageUrl, {
     output: {
       format: 'image/png',
-      type: 'foreground',
     },
     progress: (key: string, current: number, total: number) => {
       let progressVal = 0;
@@ -42,7 +41,6 @@ export async function processBackgroundRemoval({
 
       onProgress(keyLabel, progressVal);
     },
-    signal,
   });
 
   // Composite the image if solid background or custom feathering required

@@ -306,7 +306,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // 3. If item is a standard Blob / File
         const id = Math.random().toString(36).substring(7);
         try {
-          const optimizedFile = await optimizeUploadImage(file);
+          const optimizedFile = await optimizeUploadImage(file as File);
           const url = (optimizedFile instanceof Blob) ? URL.createObjectURL(optimizedFile) : '';
           return {
             id,

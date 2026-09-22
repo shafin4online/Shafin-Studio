@@ -1,0 +1,1 @@
+{"root":["./api/index.ts","./server/apiApp.ts","./server/apiManager/apiSelector.ts","./server/apiManager/cooldownManager.ts","./server/apiManager/credentialVault.ts","./server/apiManager/index.ts","./server/apiManager/preconfiguredKeys.ts","./server/apiManager/taskRouter.ts","./server/apiManager/types.ts"],"version":"5.8.3"}

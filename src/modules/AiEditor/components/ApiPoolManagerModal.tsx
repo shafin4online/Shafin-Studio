@@ -179,6 +179,35 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
   };
 
   const handleDeleteKey = async (id: string) => {
+    // Also remove from local storage if it's a local key or by index
+    try {
+      const stored = localStorage.getItem('shafinbd_gemini_keys');
+      if (stored) {
+        const list = JSON.parse(stored);
+        if (Array.isArray(list)) {
+          let updated = list;
+          if (id.startsWith('LOCAL-')) {
+            const idx = parseInt(id.replace('LOCAL-', ''), 10) - 1;
+            if (idx >= 0 && idx < list.length) {
+              updated = list.filter((_, i) => i !== idx);
+            }
+          } else {
+            // Find key in state
+            const target = keys.find(k => k.id === id);
+            if (target) {
+              updated = list.filter(item => {
+                const itemMask = item.apiKey ? `${item.apiKey.slice(0, 4)}...${item.apiKey.slice(-4)}` : '';
+                return itemMask !== target.maskedKey && item.name !== target.name;
+              });
+            }
+          }
+          localStorage.setItem('shafinbd_gemini_keys', JSON.stringify(updated));
+        }
+      }
+    } catch (e) {
+      console.warn('Failed removing from local storage:', e);
+    }
+
     try {
       const res = await fetch(`/api/admin/api-pool/key/${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -187,10 +216,14 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
         if (data.keys) setKeys(data.keys);
         setActionMsg(`${id} সফলভাবে রিমুভ করা হয়েছে`);
         setTimeout(() => setActionMsg(null), 3000);
+        return;
       }
     } catch (err) {
       console.error('Error deleting key:', err);
     }
+    loadLocalKeysFallback();
+    setActionMsg(`${id} সফলভাবে রিমুভ করা হয়েছে`);
+    setTimeout(() => setActionMsg(null), 3000);
   };
 
   const handleBulkAdd = async (e: React.FormEvent) => {
@@ -253,10 +286,13 @@ export const ApiPoolManagerModal: React.FC<ApiPoolManagerModalProps> = ({
         const data = await res.json();
         if (data.summary) setSummary(data.summary);
         if (data.keys) setKeys(data.keys);
+        return;
       }
     } catch (err) {
       console.error('Error toggling key status:', err);
     }
+    // Update local state directly if backend is unavailable
+    setKeys(prev => prev.map(k => k.id === id ? { ...k, status: enable ? 'ACTIVE' : 'DISABLED' } : k));
   };
 
   const handleAddKey = async (e: React.FormEvent) => {

@@ -263,18 +263,15 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
         const canvas = document.createElement('canvas');
         let targetW = 900;
         let targetH = 1100; // default 45x55 passport ratio
-        if (selectedSize === 'stamp') {
-          targetW = 800;
-          targetH = 1000;
-        } else if (selectedSize === 'square') {
+        if (selectedSize === 'visa') {
           targetW = 1000;
           targetH = 1000;
-        } else if (selectedSize === '3r') {
-          targetW = 1050;
-          targetH = 1500;
-        } else if (selectedSize === '4r') {
-          targetW = 1200;
-          targetH = 1800;
+        } else if (selectedSize === 'epass') {
+          targetW = 820;
+          targetH = 1025;
+        } else if (selectedSize === 'birth') {
+          targetW = 900;
+          targetH = 1200;
         }
         canvas.width = targetW;
         canvas.height = targetH;
