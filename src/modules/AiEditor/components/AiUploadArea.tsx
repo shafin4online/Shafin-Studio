@@ -21,6 +21,7 @@ import {
 import { PhotoSizeId } from '../types/aiEditorTypes';
 import { PHOTO_SIZES } from '../data/presetsData';
 import { MobileAiResultView } from './mobile/MobileAiResultView';
+import { fileToOptimizedDataUrl, formatBytes, MAX_IMAGE_BYTES } from '@/lib/imageOptimizer';
 
 interface AiUploadAreaProps {
   selectedSize: PhotoSizeId;
@@ -90,9 +91,40 @@ export const AiUploadArea: React.FC<AiUploadAreaProps> = ({
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [isComparingOriginal, setIsComparingOriginal] = useState(false);
   const [feedbackStatus, setFeedbackStatus] = useState<'good' | 'bad' | 'copied' | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressNotice, setCompressNotice] = useState<string | null>(null);
 
   const isDualMode = selectedSize === 'dual';
   const sizePreset = PHOTO_SIZES.find(s => s.id === selectedSize) || PHOTO_SIZES[0];
+
+  // Helper to process any uploaded file/blob, compressing to <= 3MB automatically
+  const processAndUploadFile = async (
+    file: File | Blob,
+    onUploadCallback?: (dataUrl: string) => void
+  ) => {
+    if (!file || !onUploadCallback) return;
+    setIsCompressing(true);
+    try {
+      const fileObj = file instanceof File ? file : new File([file], `photo_${Date.now()}.jpg`, { type: file.type || 'image/jpeg' });
+      const result = await fileToOptimizedDataUrl(fileObj, MAX_IMAGE_BYTES);
+      if (result.wasCompressed) {
+        setCompressNotice(`ছবির সাইজ স্বয়ংক্রিয়ভাবে ৩MB এর মধ্যে অপ্টিমাইজ করা হয়েছে (${formatBytes(result.originalSize)} ➔ ${formatBytes(result.optimizedSize)})`);
+        setTimeout(() => setCompressNotice(null), 5000);
+      }
+      onUploadCallback(result.dataUrl);
+    } catch (err) {
+      console.error('[AiUploadArea] Error optimizing upload:', err);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          onUploadCallback(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsCompressing(false);
+    }
+  };
 
   // Shortcut Ctrl+U / Cmd+U listener
   useEffect(() => {
@@ -115,41 +147,74 @@ export const AiUploadArea: React.FC<AiUploadAreaProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isDualMode, uploadedImageLeft]);
 
-  const handleFileChange = (
+  // Global paste support (Ctrl+V / Cmd+V)
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            if (isDualMode) {
+              if (!uploadedImageLeft) {
+                processAndUploadFile(file, onImageUploadLeft);
+              } else {
+                processAndUploadFile(file, onImageUploadRight);
+              }
+            } else {
+              processAndUploadFile(file, onImageUpload);
+            }
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [isDualMode, uploadedImageLeft, onImageUpload, onImageUploadLeft, onImageUploadRight]);
+
+  const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     onUploadCallback?: (dataUrl: string) => void
   ) => {
     const file = e.target.files?.[0];
     if (file && onUploadCallback) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          onUploadCallback(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+      await processAndUploadFile(file, onUploadCallback);
+      e.target.value = '';
     }
   };
 
-  const handleDropFile = (
+  const handleDropFile = async (
     e: React.DragEvent,
     onUploadCallback?: (dataUrl: string) => void
   ) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file && onUploadCallback) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          onUploadCallback(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+      await processAndUploadFile(file, onUploadCallback);
     }
   };
 
   return (
     <div className="relative w-full h-full flex items-center justify-center p-4 lg:p-8 select-none">
+      {/* Auto-Compression Notice Banner */}
+      {compressNotice && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-emerald-950/95 border border-emerald-500/60 rounded-full text-emerald-300 text-xs font-semibold shadow-xl shadow-black/50 flex items-center gap-2 backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{compressNotice}</span>
+        </div>
+      )}
+
+      {/* Uploading & Auto-Compressing Overlay */}
+      {isCompressing && (
+        <div className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-2xl">
+          <RefreshCw className="w-8 h-8 text-amber-400 animate-spin" />
+          <p className="text-sm font-semibold text-white">ছবি অপ্টিমাইজ করা হচ্ছে (সর্বোচ্চ ৩MB)...</p>
+        </div>
+      )}
+
       {/* Hidden File Inputs */}
       <input
         ref={fileInputRef}
@@ -177,9 +242,13 @@ export const AiUploadArea: React.FC<AiUploadAreaProps> = ({
       {isDualMode && !generatedImage ? (
         <div className="w-full max-w-4xl flex flex-col items-center justify-center gap-5">
           {/* Header pill */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold tracking-tight">
               যৌথ / ড্যুয়াল পাসপোর্ট ফটো মোড
+            </span>
+            <span className="px-3 py-1 rounded-full bg-emerald-950/50 border border-emerald-800/50 text-emerald-400 text-xs font-medium flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              স্বয়ংক্রিয় ৩MB ম্যাক্স সাইজ
             </span>
           </div>
 
@@ -402,8 +471,14 @@ export const AiUploadArea: React.FC<AiUploadAreaProps> = ({
           </button>
 
           {/* Shortcut Badge matching screenshot */}
-          <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-800/80 border border-slate-700 text-slate-400 font-mono text-[10px] tracking-wider">
+          <div className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-800/80 border border-slate-700 text-slate-400 font-mono text-[10px] tracking-wider mb-3">
             Ctrl+U
+          </div>
+
+          {/* 3MB Auto Limit Badge */}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 text-xs font-medium">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>স্বয়ংক্রিয় ৩MB ম্যাক্সিমাম সাইজ অপ্টিমাইজেশন সক্রিয়</span>
           </div>
         </div>
       ) : (

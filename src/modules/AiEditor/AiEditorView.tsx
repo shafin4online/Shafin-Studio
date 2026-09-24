@@ -13,6 +13,7 @@ import { MobileEnhancementSheet } from './components/mobile/MobileEnhancementShe
 import { MobileBottomDock } from './components/mobile/MobileBottomDock';
 import { useStudio } from '@/context/StudioContext';
 import { Sparkles, ArrowLeft, Server, AlertCircle, X } from 'lucide-react';
+import { optimizeDataUrl, SAFE_PAYLOAD_IMAGE_BYTES } from '@/lib/imageOptimizer';
 
 interface AiEditorViewProps {
   onBackToStudio?: () => void;
@@ -175,13 +176,29 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
         console.warn('Failed to parse local stored keys:', e);
       }
 
-      const response = await fetch('/api/ai-editor', {
+      // Ensure all images sent in the payload are safely optimized under server limits to prevent 413 (Content Too Large)
+      let payloadImage = isDualMode ? (uploadedImageLeft || uploadedImageRight) : uploadedImage;
+      let payloadLeftImage = uploadedImageLeft;
+      let payloadRightImage = uploadedImageRight;
+
+      if (isDualMode) {
+        // In dual mode, limit each image to ~1.4MB so total JSON payload is safely <= 3.2MB
+        const dualMaxBytes = 1.4 * 1024 * 1024;
+        if (payloadLeftImage) payloadLeftImage = await optimizeDataUrl(payloadLeftImage, dualMaxBytes);
+        if (payloadRightImage) payloadRightImage = await optimizeDataUrl(payloadRightImage, dualMaxBytes);
+        payloadImage = payloadLeftImage || payloadRightImage;
+      } else if (payloadImage) {
+        // In single mode, limit image to SAFE_PAYLOAD_IMAGE_BYTES (2.5MB)
+        payloadImage = await optimizeDataUrl(payloadImage, SAFE_PAYLOAD_IMAGE_BYTES);
+      }
+
+      let response = await fetch('/api/ai-editor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          image: isDualMode ? (uploadedImageLeft || uploadedImageRight) : uploadedImage,
-          leftImage: uploadedImageLeft,
-          rightImage: uploadedImageRight,
+          image: payloadImage,
+          leftImage: payloadLeftImage,
+          rightImage: payloadRightImage,
           prompt: dynamicPrompt,
           size: selectedSize,
           dressId: isDualMode ? undefined : selectedDressId,
@@ -192,6 +209,37 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
         })
       }).catch(() => null);
 
+      // Auto-retry on 413 Payload Too Large by compressing more aggressively
+      if (response && response.status === 413) {
+        console.warn('[AiEditor] Received 413 Payload Too Large. Re-compressing payload and auto-retrying...');
+        setGenerationProgress('ছবির সাইজ আরও অপ্টিমাইজ করে পুনরায় চেষ্টা করা হচ্ছে...');
+        const aggressiveTarget = isDualMode ? 800 * 1024 : 1.5 * 1024 * 1024;
+        if (isDualMode) {
+          if (payloadLeftImage) payloadLeftImage = await optimizeDataUrl(payloadLeftImage, aggressiveTarget);
+          if (payloadRightImage) payloadRightImage = await optimizeDataUrl(payloadRightImage, aggressiveTarget);
+          payloadImage = payloadLeftImage || payloadRightImage;
+        } else if (payloadImage) {
+          payloadImage = await optimizeDataUrl(payloadImage, aggressiveTarget);
+        }
+
+        response = await fetch('/api/ai-editor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: payloadImage,
+            leftImage: payloadLeftImage,
+            rightImage: payloadRightImage,
+            prompt: dynamicPrompt,
+            size: selectedSize,
+            dressId: isDualMode ? undefined : selectedDressId,
+            leftDressId,
+            rightDressId,
+            bgHex: effectiveBgHex,
+            clientKeys
+          })
+        }).catch(() => null);
+      }
+
       if (response && response.ok) {
         const data = await response.json();
         if (data.image) {
@@ -201,12 +249,27 @@ export const AiEditorView: React.FC<AiEditorViewProps> = ({ onBackToStudio }) =>
           return;
         } else if (data.error || data.message) {
           setApiErrorNotice(data.error || data.message);
+          setIsGenerating(false);
+          return;
         }
       } else if (response) {
-        const errData = await response.json().catch(() => null);
-        if (errData?.error || errData?.message) {
-          setApiErrorNotice(errData.error || errData.message);
+        const errText = await response.text().catch(() => '');
+        let errMsg = `সার্ভার ত্রুটি (${response.status})`;
+        try {
+          const jsonErr = JSON.parse(errText);
+          if (jsonErr.error || jsonErr.message) errMsg = jsonErr.error || jsonErr.message;
+        } catch {
+          if (response.status === 413) {
+            errMsg = 'ছবির সাইজ সার্ভার সীমা (Payload Limit) অতিক্রম করেছে। অনুগ্রহ করে ৩MB এর ভেতরের ছবি ব্যবহার করুন।';
+          }
         }
+        setApiErrorNotice(errMsg);
+        setIsGenerating(false);
+        return;
+      } else {
+        setApiErrorNotice('সার্ভারের সাথে সংযোগ স্থাপন করা যায়নি। অনুগ্রহ করে ইন্টারনেট কানেকশন বা API কী চেক করুন।');
+        setIsGenerating(false);
+        return;
       }
 
       // Fallback or UI preview simulation

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useRef, useEff
 import type { EditorState, StudioImage, CropPreset, PrintSlot, ImageInput } from './studioTypes';
 import { processBackgroundRemoval } from './bgProService';
 import { processImageEnhancement } from './enhancerService';
-import { optimizeUploadImage } from '@/lib/imageOptimizer';
+import { optimizeUploadImage, optimizeDataUrl, MAX_IMAGE_BYTES } from '@/lib/imageOptimizer';
 
 export interface HistoryItem {
   editorState: EditorState;
@@ -294,12 +294,20 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // 2. If item is a direct string (dataURL or web URL)
         if (typeof file === 'string') {
           const id = `img-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+          let optimizedStr = file;
+          if (file.startsWith('data:image/')) {
+            try {
+              optimizedStr = await optimizeDataUrl(file, MAX_IMAGE_BYTES);
+            } catch (e) {
+              console.warn('[StudioContext] Could not optimize dataUrl string:', e);
+            }
+          }
           return {
             id,
             name: `Photo_${Date.now()}.png`,
-            original: file,
-            edited: file,
-            thumbnail: file,
+            original: optimizedStr,
+            edited: optimizedStr,
+            thumbnail: optimizedStr,
           };
         }
 
