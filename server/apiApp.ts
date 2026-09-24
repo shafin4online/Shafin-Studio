@@ -4,12 +4,44 @@ import { taskRouter, vault, apiSelector } from "./apiManager/index";
 export function createApiApp() {
   const app = express();
 
-  // Support high-resolution photos
+  // Support high-resolution photos and JSON payloads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+  // CORS middleware for safety across preview, custom domain, and Vercel
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(204);
+    }
+    next();
+  });
+
+  // Path recovery middleware for Vercel rewrites
+  app.use((req, res, next) => {
+    const matchedPath = (req.headers["x-matched-path"] || req.headers["x-invoke-path"]) as string | undefined;
+    if (matchedPath && matchedPath.startsWith("/api") && (req.url === "/" || req.url === "/api")) {
+      req.url = matchedPath;
+    }
+    next();
+  });
+
+  const router = express.Router();
+
+  // Health check endpoint
+  router.get("/health", (req, res) => {
+    res.json({ status: "healthy", timestamp: Date.now() });
+  });
+
+  // Ping endpoint
+  router.get("/", (req, res) => {
+    res.json({ status: "ok", service: "shafinbd-studio-api" });
+  });
+
   // API router for server-side Gradio delegation
-  app.post("/api/enhance", async (req, res) => {
+  router.post("/enhance", async (req, res) => {
     try {
       const {
         image,
@@ -73,7 +105,7 @@ export function createApiApp() {
   });
 
   // Admin API: Get API pool summary & key statistics
-  app.get("/api/admin/api-pool", (req, res) => {
+  router.get("/admin/api-pool", (req, res) => {
     try {
       const summary = apiSelector.getPoolSummary();
       const keys = vault.getMaskedCredentials();
@@ -90,7 +122,7 @@ export function createApiApp() {
   });
 
   // Admin API: Reset all cooldowns back to active
-  app.post("/api/admin/api-pool/reset-cooldowns", (req, res) => {
+  router.post("/admin/api-pool/reset-cooldowns", (req, res) => {
     try {
       vault.resetAllCooldowns();
       const summary = apiSelector.getPoolSummary();
@@ -102,7 +134,7 @@ export function createApiApp() {
   });
 
   // Admin API: Add new Google API key to pool at runtime
-  app.post("/api/admin/api-pool/key", (req, res) => {
+  router.post("/admin/api-pool/key", (req, res) => {
     try {
       const { apiKey, name, priority } = req.body;
       if (!apiKey || typeof apiKey !== "string") {
@@ -131,7 +163,7 @@ export function createApiApp() {
   });
 
   // Admin API: Toggle key enabled/disabled
-  app.post("/api/admin/api-pool/toggle", (req, res) => {
+  router.post("/admin/api-pool/toggle", (req, res) => {
     try {
       const { id, enabled } = req.body;
       if (!id) {
@@ -145,7 +177,7 @@ export function createApiApp() {
   });
 
   // Admin API: Bulk add multiple keys
-  app.post("/api/admin/api-pool/bulk-keys", (req, res) => {
+  router.post("/admin/api-pool/bulk-keys", (req, res) => {
     try {
       const { rawText, keyList } = req.body;
       let addedCount = 0;
@@ -203,7 +235,7 @@ export function createApiApp() {
   });
 
   // Admin API: Delete a key from pool
-  app.delete("/api/admin/api-pool/key/:id", (req, res) => {
+  router.delete("/admin/api-pool/key/:id", (req, res) => {
     try {
       const { id } = req.params;
       const deleted = vault.deleteCredential(id);
@@ -219,7 +251,7 @@ export function createApiApp() {
   });
 
   // Admin API: Delete all failed keys
-  app.post("/api/admin/api-pool/clear-failed", (req, res) => {
+  router.post("/admin/api-pool/clear-failed", (req, res) => {
     try {
       const all = vault.getAllCredentials();
       let cleared = 0;
@@ -242,7 +274,7 @@ export function createApiApp() {
   });
 
   // AI Editor endpoint powered by Centralized API Pool & Task Router
-  app.post("/api/ai-editor", async (req, res) => {
+  router.post("/ai-editor", async (req, res) => {
     try {
       const { image, leftImage, rightImage, prompt, size, task, dressId, bgHex, clientKeys } = req.body;
 
@@ -318,6 +350,9 @@ export function createApiApp() {
       });
     }
   });
+
+  // Mount API router ONLY on "/api"
+  app.use("/api", router);
 
   return app;
 }
